@@ -1,6 +1,6 @@
 // Example routes
-const express = require('express');
-const exampleController = require('../controllers/exampleController');
+import express from 'express';
+import exampleController from '../controllers/exampleController.js';
 
 const router = express.Router();
 
@@ -8,4 +8,4 @@ const router = express.Router();
 router.post('/add-item', exampleController.addItem);
 router.get('/get-items', exampleController.getItems);
 
-module.exports = router;
+export default router;

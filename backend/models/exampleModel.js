@@ -9,4 +9,4 @@ const exampleModel = {
     }
 };
 
-module.exports = exampleModel;
+export default exampleModel;
