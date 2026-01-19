@@ -1,2 +1,6 @@
 frontend-mobile/roadAlert/node_modules
 frontend-web/roadAlert/node_modules
+
+roadAlert/node_modules
+roadAlert/.env
+roadAlert/serviceAccountKey.json
