@@ -59,7 +59,7 @@ L'application permet aux citoyens de signaler des problèmes et aux gestionnaire
    npm start
    ```
 5. Accéder à l'API :
-   - Documentation Swagger disponible sur `http://localhost:5000/api-docs`
+   - Documentation Swagger disponible sur `http://localhost:3000/api-docs`
 
 ### Frontend Web (Ionic/React)
 1. Naviguer dans le répertoire du frontend-web :
