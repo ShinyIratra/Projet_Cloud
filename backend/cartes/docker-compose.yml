@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  osm-tile-server:
+    image: overv/openstreetmap-tile-server:latest
+    container_name: osm-tile-server
+    ports:
+      - "8080:80"
+    volumes:
+      - osm-data2:/data/database/
+      - ./:/data/region/
+    environment:
+      - THREADS=1
+    restart: unless-stopped
+    command: run
+
+volumes:
+  osm-data2:
+    external: true

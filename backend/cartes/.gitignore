@@ -1,0 +1,9 @@
+# Fichiers OSM volumineux (télécharger depuis GeoFabrik)
+region.osm.pbf
+*.osm.pbf
+
+# Images de test
+test-tile*.png
+
+# Logs Docker
+*.log
