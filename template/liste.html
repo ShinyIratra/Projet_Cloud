@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Récapitulatif — RoadWatch Tana</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b;
+        }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 28px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(226, 232, 240, 0.5);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .icon-shape {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-new { background: #fff7ed; color: #ea580c; } /* Orange */
+        .status-progress { background: #eff6ff; color: #2563eb; } /* Blue */
+        .status-done { background: #f0fdf4; color: #16a34a; } /* Green */
+
+        /* Scrollbar custom */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- NAVBAR -->
+    <nav class="glass-nav fixed top-0 w-full z-50 h-16 flex items-center justify-between px-6 md:px-12">
+        <div class="text-xl font-extrabold tracking-tight">
+            Road<span class="text-blue-600">Alert</span> <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 bg-slate-100 px-2 py-1 rounded-md">Tana</span>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <button class="hidden md:block text-xs font-bold text-slate-500 hover:text-blue-600 transition">
+                <i class="fas fa-file-export mr-2"></i>Export PDF
+            </button>
+            <div class="w-10 h-10 rounded-full bg-blue-100 border-2 border-white shadow-sm overflow-hidden">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="profile">
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="pt-24 px-4 md:px-12 max-w-7xl mx-auto">
+        
+        <!-- HEADER -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+            <div>
+                <span class="text-blue-600 font-bold text-xs uppercase tracking-[0.2em]">Vue d'ensemble</span>
+                <h1 class="text-4xl font-black text-slate-900 tracking-tight mt-1">Tableau de bord</h1>
+            </div>
+            <div class="flex bg-white/50 backdrop-blur p-1 rounded-2xl border border-slate-200">
+                <button class="px-5 py-2.5 bg-white shadow-sm text-slate-900 rounded-xl text-xs font-bold transition">7 Derniers jours</button>
+                <button class="px-5 py-2.5 text-slate-500 hover:text-slate-800 rounded-xl text-xs font-bold transition">Mensuel</button>
+            </div>
+        </div>
+
+        <!-- STATS GRID (Données alignées avec home.html) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <!-- Points -->
+            <div class="stat-card">
+                <div class="icon-shape bg-blue-50 text-blue-600">
+                    <i class="fas fa-map-pin text-xl"></i>
+                </div>
+                <p class="text-slate-400 font-bold text-[11px] uppercase tracking-wider">Points recensés</p>
+                <div class="flex items-end justify-between mt-1">
+                    <h2 class="text-3xl font-black text-slate-800">124</h2>
+                    <span class="text-green-500 text-[11px] font-bold mb-1"><i class="fas fa-caret-up mr-1"></i>3%</span>
+                </div>
+            </div>
+
+            <!-- Surface -->
+            <div class="stat-card">
+                <div class="icon-shape bg-indigo-50 text-indigo-600">
+                    <i class="fas fa-road text-xl"></i>
+                </div>
+                <p class="text-slate-400 font-bold text-[11px] uppercase tracking-wider">Surface Signalée</p>
+                <div class="flex items-end justify-between mt-1">
+                    <h2 class="text-3xl font-black text-slate-800">4.150 <span class="text-sm font-bold text-slate-400">m²</span></h2>
+                </div>
+            </div>
+
+            <!-- Budget -->
+            <div class="stat-card">
+                <div class="icon-shape bg-emerald-50 text-emerald-600">
+                    <i class="fas fa-wallet text-xl"></i>
+                </div>
+                <p class="text-slate-400 font-bold text-[11px] uppercase tracking-wider">Budget Total</p>
+                <div class="flex items-end justify-between mt-1">
+                    <h2 class="text-3xl font-black text-slate-800">1.46 <span class="text-sm font-bold text-slate-400">Md Ar</span></h2>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="stat-card">
+                <div class="icon-shape bg-orange-50 text-orange-600">
+                    <i class="fas fa-chart-pie text-xl"></i>
+                </div>
+                <p class="text-slate-400 font-bold text-[11px] uppercase tracking-wider">Réparation Globale</p>
+                <div class="mt-2">
+                    <div class="flex justify-between mb-1 text-[11px] font-bold">
+                        <span class="text-slate-700">32% terminés</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div class="bg-blue-600 h-full rounded-full" style="width: 32%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            <!-- GRAPHIQUE -->
+            <div class="lg:col-span-2 bg-white rounded-[32px] p-8 border border-slate-200/60 shadow-sm">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="font-bold text-slate-800 text-lg">Activité des signalements</h3>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tana Ville</span>
+                    </div>
+                </div>
+                <canvas id="mainChart" height="140"></canvas>
+            </div>
+
+            <!-- ATTRIBUTIONS -->
+            <div class="bg-white rounded-[32px] p-8 border border-slate-200/60 shadow-sm">
+                <h3 class="font-bold text-slate-800 text-lg mb-6">Entreprises actives</h3>
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-2">
+                            <span class="text-slate-700">Colas Madagascar</span>
+                            <span class="text-blue-600">55%</span>
+                        </div>
+                        <div class="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-blue-600 h-full" style="width: 55%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-2">
+                            <span class="text-slate-700">SOGEA / SATOM</span>
+                            <span class="text-indigo-600">30%</span>
+                        </div>
+                        <div class="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-indigo-600 h-full" style="width: 30%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-2">
+                            <span class="text-slate-700">SMATP</span>
+                            <span class="text-emerald-600">15%</span>
+                        </div>
+                        <div class="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-emerald-600 h-full" style="width: 15%"></div>
+                        </div>
+                    </div>
+                </div>
+                <button class="w-full mt-10 py-4 border-2 border-slate-100 hover:bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] transition">
+                    Détails des contrats
+                </button>
+            </div>
+        </div>
+
+        <!-- TABLEAU RÉCAPITULATIF (Données de home.html) -->
+        <div class="bg-white rounded-[32px] border border-slate-200/60 shadow-sm overflow-hidden">
+            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">Liste des points critiques</h3>
+                <button class="text-slate-400 hover:text-slate-600"><i class="fas fa-sliders-h"></i></button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                            <th class="px-8 py-4">Localisation</th>
+                            <th class="px-8 py-4">Statut</th>
+                            <th class="px-8 py-4 text-center">Surface</th>
+                            <th class="px-8 py-4">Budget Estimé</th>
+                            <th class="px-8 py-4">Entreprise</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        <!-- Point 1 -->
+                        <tr class="hover:bg-slate-50/50 transition group">
+                            <td class="px-8 py-5">
+                                <div class="font-bold text-slate-800">Route-digue, Ankorondrano</div>
+                                <div class="text-[10px] text-slate-400 font-medium">Signalé le 15 Janvier 2024</div>
+                            </td>
+                            <td class="px-8 py-5">
+                                <span class="status-pill status-progress">En cours</span>
+                            </td>
+                            <td class="px-8 py-5 text-center font-bold text-slate-700 text-sm">1,200 m²</td>
+                            <td class="px-8 py-5">
+                                <span class="text-sm font-black text-slate-900">450M <span class="text-[10px] text-slate-400 uppercase">Ar</span></span>
+                            </td>
+                            <td class="px-8 py-5 font-bold text-slate-500 text-[10px] uppercase tracking-wider">Colas Madagascar</td>
+                        </tr>
+                        <!-- Point 2 -->
+                        <tr class="hover:bg-slate-50/50 transition group">
+                            <td class="px-8 py-5">
+                                <div class="font-bold text-slate-800">Tunnel d'Ambanidia</div>
+                                <div class="text-[10px] text-slate-400 font-medium">Signalé le 02 Février 2024</div>
+                            </td>
+                            <td class="px-8 py-5">
+                                <span class="status-pill status-new">Nouveau</span>
+                            </td>
+                            <td class="px-8 py-5 text-center font-bold text-slate-700 text-sm">450 m²</td>
+                            <td class="px-8 py-5">
+                                <span class="text-sm font-black text-slate-900">120M <span class="text-[10px] text-slate-400 uppercase">Ar</span></span>
+                            </td>
+                            <td class="px-8 py-5 font-bold text-slate-500 text-[10px] uppercase tracking-wider">SMATP</td>
+                        </tr>
+                        <!-- Point 3 -->
+                        <tr class="hover:bg-slate-50/50 transition group">
+                            <td class="px-8 py-5">
+                                <div class="font-bold text-slate-800">Avenue de l'Indépendance</div>
+                                <div class="text-[10px] text-slate-400 font-medium">Signalé le 20 Décembre 2023</div>
+                            </td>
+                            <td class="px-8 py-5">
+                                <span class="status-pill status-done">Terminé</span>
+                            </td>
+                            <td class="px-8 py-5 text-center font-bold text-slate-700 text-sm">2,500 m²</td>
+                            <td class="px-8 py-5">
+                                <span class="text-sm font-black text-slate-900">890M <span class="text-[10px] text-slate-400 uppercase">Ar</span></span>
+                            </td>
+                            <td class="px-8 py-5 font-bold text-slate-500 text-[10px] uppercase tracking-wider">SOGEA</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER NAV (Lien vers home.html) -->
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl px-8 py-4 rounded-full shadow-2xl flex items-center space-x-10 z-50 border border-slate-200">
+        <a href="home.html"><i class="fas fa-home text-slate-400 text-lg hover:text-blue-600 transition"></i></a>
+        <a href="home.html"><i class="fas fa-map-marked-alt text-slate-400 hover:text-blue-600 text-lg cursor-pointer transition"></i></a>
+        <i class="fas fa-plus-circle text-slate-300 text-2xl cursor-not-allowed"></i>
+        <a href="liste.html"><i class="fas fa-chart-line text-blue-600 text-lg"></i></a>
+        <i class="fas fa-cog text-slate-400 hover:text-blue-600 text-lg cursor-pointer transition"></i>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(37, 99, 235, 0.2)');
+        gradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+                datasets: [{
+                    label: 'Signalements',
+                    data: [5, 12, 8, 15, 10, 22, 18],
+                    borderColor: '#2563eb',
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.45,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#2563eb',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { 
+                        display: true, 
+                        grid: { color: '#f1f5f9' },
+                        ticks: { font: { size: 10, weight: '600' }, color: '#94a3b8' }
+                    },
+                    x: { grid: { display: false }, ticks: { font: { size: 10, weight: '600' }, color: '#94a3b8' } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

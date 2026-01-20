@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion — Studio</title>
+    <style>
+        :root {
+            /* Mode Clair - Animation en Noir discret */
+            --canvas: #f5f5f7; 
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent: #0066cc;
+            --input-bg: #ffffff;
+            --input-border: #d2d2d7;
+            --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            --dot-color: 0, 0, 0; /* Base RGB pour le noir */
+            --dot-opacity: 0.15;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* Mode Sombre - Animation en Blanc discret */
+                --canvas: #000000; 
+                --card-bg: rgba(28, 28, 30, 0.8);
+                --text-primary: #f5f5f7;
+                --text-secondary: #a1a1a6;
+                --accent: #2997ff;
+                --input-bg: #1c1c1e;
+                --input-border: #424245;
+                --card-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+                --dot-color: 255, 255, 255; /* Base RGB pour le blanc */
+                --dot-opacity: 0.2;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        
+        body {
+            background-color: var(--canvas);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100dvh;
+            overflow: hidden;
+        }
+
+        #canvas-dots {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* STYLE POUR LE DIV D'ERREUR */
+        .error-container {
+            background-color: rgba(255, 59, 48, 0.1);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            display: block; /* Caché par défaut */
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .error-text {
+            color: var(--error-red);
+            font-size: 14px;
+            line-height: 1.4;
+            font-weight: 400;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(var(--dot-color), 0.1);
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 40px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        input {
+            width: 100%;
+            height: 50px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            padding: 0 15px;
+            font-size: 16px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            border-width: 2px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            height: 50px;
+            background-color: var(--text-primary);
+            color: var(--canvas);
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 15px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary:hover { opacity: 0.85; }
+
+        .actions {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .actions a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .separator {
+            width: 1px;
+            height: 12px;
+            background-color: var(--text-secondary);
+            opacity: 0.3;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas-dots"></canvas>
+
+    <div class="login-wrapper">
+        <main class="card">
+            <div class="logo"></div>
+            <h1>Identifiant</h1>
+            <p class="subtitle">Entrer vos identifiants</p>
+
+            <!-- BLOC D'ERREUR -->
+            <div id="error-message" class="error-container">
+                <p class="error-text">Trop de tentatives. Utilisateur bloqué. Contacté le Manager</p>
+            </div>
+
+            <form action="#" onsubmit="return false;">
+                <input type="email" placeholder="Email ou téléphone" required>
+                <input type="password" placeholder="Mot de passe" required>
+                <button type="submit" class="btn-primary">Continuer</button>
+            </form>
+
+            <div class="actions">
+                <a href="#">Oublié ?</a>
+                <span class="separator"></span>
+                <a href="#">Créer un compte</a>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Données et confidentialité</p>
+        </footer>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas-dots');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        }
+
+        window.addEventListener('resize', resize);
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vy = (Math.random() - 0.5) * 0.3;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+            draw(colorRGB, opacity) {
+                ctx.fillStyle = `rgba(${colorRGB}, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            particles = [];
+            const count = (canvas.width * canvas.height) / 12000;
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Récupère les couleurs CSS dynamiquement
+            const style = getComputedStyle(document.documentElement);
+            const colorRGB = style.getPropertyValue('--dot-color').trim();
+            const baseOpacity = parseFloat(style.getPropertyValue('--dot-opacity'));
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw(colorRGB, baseOpacity);
+
+                for (let j = i; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 150) {
+                        const opacity = (1 - dist / 150) * baseOpacity;
+                        ctx.strokeStyle = `rgba(${colorRGB}, ${opacity})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        resize();
+        animate();
+    </script>
+</body>
+</html>

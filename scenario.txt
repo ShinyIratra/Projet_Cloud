@@ -1,0 +1,17 @@
+Scénario 1 : Un visiteur regarde le web sans se connecter -> il peut voir les différentes
+les problèmes routiers : – Lorsqu’on survole un point, on doit voir les infos
+sur le problème ( date, status (nouveau, en cours,
+terminé), surface en m2, budget, entreprise
+concerné)
+– Voir le tableau de récapitulation actuel ( Nb de
+point, total surface, avancement en %, total
+budget)
+
+Scénario 2 : Un manager se connecte et modifie le statut d'un signalement
+
+Scénario 3 : Un utilisateur fait un erreur de connexion 3 fois -> on dit qu'il est bloqué
+-> un manager se connecte et le débloque -> il peut ensuite se connecte
+
+Scénario 4 : Un utilisateur se connecte sur Mobile -> un fait une signalisation ->
+visible dans le mobile -> un manager synchronise -> visible dans le web
+
