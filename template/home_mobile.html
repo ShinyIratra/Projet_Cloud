@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RoadAlert Tana - Mobile First</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f8fafc;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #map { position: absolute; inset: 0; z-index: 0; }
+
+        /* Effet de flou et transparence type iOS */
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* Bottom Sheet - Design Mobile */
+        #bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 24px 24px 0 0;
+            z-index: 2000;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.1);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        #bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        .sheet-handle {
+            width: 40px;
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            margin: 12px auto;
+        }
+
+        /* Barre de recherche flottante */
+        .floating-search {
+            position: fixed;
+            top: 20px;
+            left: 15px;
+            right: 15px;
+            z-index: 1000;
+        }
+
+        /* Boutons d'action rapides */
+        .action-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* Cache les contrôles Leaflet par défaut */
+        .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
+
+        /* Style des pastilles sur la carte */
+        .marker-pin {
+            width: 30px;
+            height: 30px;
+            background: #3b82f6;
+            border: 3px solid white;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+        }
+        .marker-pin i { transform: rotate(45deg); color: white; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <!-- MAP -->
+    <div id="map"></div>
+
+    <!-- TOP NAVIGATION & SEARCH -->
+    <div class="floating-search space-y-3">
+        <div class="glass-morphism rounded-2xl p-2 flex items-center shadow-lg border border-white">
+            <button class="p-2 text-slate-400"><i class="fas fa-bars"></i></button>
+            <input type="text" placeholder="Rechercher à Antananarivo..." class="flex-grow bg-transparent border-none focus:ring-0 text-sm font-semibold px-2">
+            <div class="w-8 h-8 rounded-full overflow-hidden bg-blue-100">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+            </div>
+        </div>
+        
+        <!-- Quick Filters -->
+        <div class="flex space-x-2 overflow-x-auto pb-2 no-scrollbar">
+            <button class="glass-morphism px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-slate-600 border border-white whitespace-nowrap shadow-sm">
+                <i class="fas fa-hammer mr-1"></i> Travaux
+            </button>
+            <button class="glass-morphism px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider text-slate-600 border border-white whitespace-nowrap shadow-sm">
+                <i class="fas fa-check-circle mr-1"></i> Terminés
+            </button>
+        </div>
+    </div>
+
+    <!-- FLOATING ACTIONS (Right side) -->
+    <div class="fixed right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col space-y-3">
+        <button class="action-button bg-white text-slate-700" onclick="centerMap()">
+            <i class="fas fa-location-arrow"></i>
+        </button>
+        <button class="action-button bg-blue-600 text-white">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- BOTTOM SHEET (Détails) -->
+    <div id="bottom-sheet">
+        <div class="sheet-handle"></div>
+        
+        <div class="px-6 pb-10">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span id="p-status" class="text-[10px] font-black uppercase px-2 py-1 bg-blue-100 text-blue-700 rounded-md">Status</span>
+                    <h2 id="p-title" class="text-xl font-extrabold text-slate-800 mt-2">Nom de la zone</h2>
+                    <p id="p-date" class="text-xs text-slate-400 font-medium">Date de signalement</p>
+                </div>
+                <button onclick="closeSheet()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-slate-50 p-3 rounded-xl">
+                    <p class="text-[10px] uppercase font-bold text-slate-400">Surface</p>
+                    <p id="p-surface" class="font-bold text-slate-700">--</p>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl">
+                    <p class="text-[10px] uppercase font-bold text-slate-400">Budget</p>
+                    <p id="p-budget" class="font-bold text-green-600">--</p>
+                </div>
+            </div>
+
+            <div class="rounded-2xl overflow-hidden mb-6 h-40 bg-slate-100">
+                <img id="p-img" src="" class="w-full h-full object-cover shadow-inner" alt="chantier">
+            </div>
+
+            <div class="flex items-center justify-between p-4 bg-blue-50 rounded-2xl">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                        <i class="fas fa-hard-hat"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-blue-400 uppercase leading-none">Entreprise</p>
+                        <p id="p-company" class="font-bold text-blue-900">--</p>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right text-blue-300"></i>
+            </div>
+            
+            <button class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold mt-6 shadow-lg active:scale-95 transition">
+                Suivre l'avancement
+            </button>
+        </div>
+    </div>
+
+    <!-- NAVIGATION BAR (Bottom Tabs) -->
+    <div class="fixed bottom-0 left-0 right-0 glass-morphism border-t border-slate-200 px-8 py-3 flex justify-between items-center z-[3000]">
+        <div class="flex flex-col items-center text-blue-600">
+            <i class="fas fa-map-marked-alt text-lg"></i>
+            <span class="text-[10px] font-bold mt-1">Explorer</span>
+        </div>
+        <div class="flex flex-col items-center text-slate-400">
+            <i class="fas fa-chart-pie text-lg"></i>
+            <span class="text-[10px] font-bold mt-1">Stats</span>
+        </div>
+        <div class="flex flex-col items-center text-slate-400">
+            <i class="fas fa-bell text-lg"></i>
+            <span class="text-[10px] font-bold mt-1">Alertes</span>
+        </div>
+        <div class="flex flex-col items-center text-slate-400">
+            <i class="fas fa-user text-lg"></i>
+            <span class="text-[10px] font-bold mt-1">Profil</span>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { zoomControl: false }).setView([-18.8792, 47.5079], 13);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        const problems = [
+            {
+                id: 1,
+                coords: [-18.887, 47.525],
+                title: "Ankorondrano (Digue)",
+                date: "15 Janvier 2024",
+                status: "En cours",
+                surface: "1 200 m²",
+                budget: "450M Ar",
+                company: "Colas Madagascar",
+                img: "https://images.unsplash.com/photo-1581094288338-2314dddb7ecc?w=600"
+            },
+            {
+                id: 2,
+                coords: [-18.910, 47.520],
+                title: "Tunnel d'Ambanidia",
+                date: "02 Février 2024",
+                status: "Urgent",
+                surface: "450 m²",
+                budget: "120M Ar",
+                company: "SMATP",
+                img: "https://images.unsplash.com/photo-1590483734724-383b85ad92e0?w=600"
+            }
+        ];
+
+        function openSheet(data) {
+            document.getElementById('p-title').innerText = data.title;
+            document.getElementById('p-date').innerText = "Signalé le " + data.date;
+            document.getElementById('p-status').innerText = data.status;
+            document.getElementById('p-surface').innerText = data.surface;
+            document.getElementById('p-budget').innerText = data.budget;
+            document.getElementById('p-company').innerText = data.company;
+            document.getElementById('p-img').src = data.img;
+
+            const sheet = document.getElementById('bottom-sheet');
+            sheet.classList.add('active');
+            
+            // Centrer la carte un peu au-dessus pour que le marker soit visible au-dessus du tiroir
+            map.flyTo([data.coords[0] - 0.005, data.coords[1]], 15);
+        }
+
+        function closeSheet() {
+            document.getElementById('bottom-sheet').classList.remove('active');
+        }
+
+        function centerMap() {
+            map.flyTo([-18.8792, 47.5079], 13);
+        }
+
+        // Marqueurs personnalisés
+        problems.forEach(prob => {
+            const icon = L.divIcon({
+                className: 'custom-icon',
+                html: `<div class="marker-pin"><i class="fas fa-hammer"></i></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30]
+            });
+
+            L.marker(prob.coords, { icon }).addTo(map).on('click', () => openSheet(prob));
+        });
+
+        // Fermer le tiroir en cliquant sur la carte
+        map.on('click', closeSheet);
+    </script>
+</body>
+</html>
