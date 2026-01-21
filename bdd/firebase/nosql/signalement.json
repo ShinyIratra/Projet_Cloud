@@ -1,0 +1,12 @@
+// Problème Routier
+{
+    "Id_problème_routier": "",
+    "Surface": ,
+    "Budget": ,
+    "Entreprise_concerné": ,
+    "Statut": "",
+    "Lattitude":,
+    "Longitude":,
+    "UID":,
+    "date_signalement":
+}

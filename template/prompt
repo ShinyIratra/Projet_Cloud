@@ -1,0 +1,501 @@
+En suivant le style de ces pages :
+home.html :
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tana Road Watch - Visiteur</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #0f172a; 
+            overflow: hidden;
+        }
+
+        /* Simulation Map - Dégradé profond */
+        .map-bg {
+            background: radial-gradient(circle at center, #2563eb 0%, #1e3a8a 100%);
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+        }
+
+        /* Glassmorphism original (V1) */
+        .glass-v1 {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        /* Cards Style Premium (V2) */
+        .floating-card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px -12px rgba(0,0,0,0.2);
+            border: 1px solid rgba(0,0,0,0.02);
+            pointer-events: auto;
+            transition: transform 0.3s ease;
+        }
+        .floating-card:hover { transform: translateY(-4px); }
+
+        /* Badge Status */
+        .badge {
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Point d'intérêt sur la map */
+        .map-pin {
+            width: 14px;
+            height: 14px;
+            background: white;
+            border: 3px solid #3b82f6;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+    <!-- FOND DE CARTE -->
+    <div class="map-bg">
+        <div class="map-pin" style="top: 45%; left: 48%;"></div>
+        <div class="map-pin" style="top: 30%; left: 20%;"></div>
+    </div>
+
+    <!-- NAVBAR (Style Instagram V1) -->
+    <nav class="glass-v1 fixed top-0 w-full z-50 h-16 flex items-center justify-between px-4 md:px-20">
+        <div class="text-xl font-extrabold tracking-tighter">
+            Road<span class="text-blue-600">Watch</span> <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tana</span>
+        </div>
+        
+        <div class="hidden md:flex bg-slate-100 rounded-xl px-4 py-2 items-center w-80">
+            <i class="fas fa-search text-slate-400 mr-3 text-sm"></i>
+            <input type="text" placeholder="Rechercher une zone..." class="bg-transparent outline-none text-sm w-full font-medium">
+        </div>
+
+        <div class="flex items-center space-x-6">
+            <i class="far fa-compass text-xl cursor-pointer hover:text-blue-600 transition"></i>
+            <i class="far fa-bell text-xl cursor-pointer hover:text-blue-600 transition"></i>
+            
+            <div class="flex items-center space-x-3 border-l pl-6 border-slate-200">
+                <div class="text-right hidden sm:block">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase leading-none">Connecté</p>
+                    <p class="text-xs font-bold text-slate-700">Visiteur</p>
+                </div>
+                <!-- Avatar avec dégradé Instagram -->
+                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-0.5">
+                    <div class="bg-white p-0.5 rounded-full h-full w-full">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="rounded-full bg-slate-100" alt="profile">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- CONTENU (Layouts V2) -->
+    <main class="relative pt-24 px-4 md:px-10 flex flex-col md:flex-row gap-6 h-screen pointer-events-none">
+        
+        <!-- PANNEAU GAUCHE : Stats Récapitulatives -->
+        <div class="w-full md:w-80 space-y-4">
+            <div class="floating-card p-6">
+                <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 border-b pb-4">Tableau de bord</h2>
+                
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-3xl font-black text-slate-800">42</p>
+                            <p class="text-[11px] font-bold text-slate-500">Signalements totaux</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-chart-pie text-lg"></i>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase">Avancement</span>
+                            <span class="text-sm font-black text-blue-600">74%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full shadow-inner" style="width: 74%"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Surface</p>
+                            <p class="text-md font-extrabold text-slate-800">2,450 <span class="text-[10px] font-normal">m²</span></p>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase">Budget</p>
+                            <p class="text-md font-extrabold text-green-600 text-sm">840M <span class="text-[10px] font-normal">Ar</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Note d'information -->
+            <div class="floating-card p-4 bg-slate-900 border-none shadow-2xl shadow-blue-900/20">
+                <div class="flex items-start space-x-3">
+                    <div class="mt-1 w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                    <p class="text-[11px] text-slate-300 font-medium leading-relaxed">
+                        Le tunnel d'Ambanidia est actuellement en phase de finition (90%).
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESPACE CENTRAL (Map visible) -->
+        <div class="flex-grow"></div>
+
+        <!-- PANNEAU DROITE : Détail Point (Style Insta V2) -->
+        <div class="w-full md:w-96">
+            <div class="floating-card overflow-hidden">
+                <!-- Image Header -->
+                <div class="relative h-52 bg-slate-200">
+                    <img src="https://images.unsplash.com/photo-1581094288338-2314dddb7ecc?auto=format&fit=crop&w=600" class="w-full h-full object-cover" alt="travaux">
+                    <div class="absolute top-4 left-4">
+                        <span class="badge bg-white text-blue-600 shadow-xl">Nouveau</span>
+                    </div>
+                    <div class="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <p class="absolute bottom-4 left-4 text-white font-bold text-sm">Route-digue, Ankorondrano</p>
+                </div>
+
+                <!-- Content -->
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex -space-x-2">
+                            <img src="https://i.pravatar.cc/150?u=1" class="w-7 h-7 rounded-full border-2 border-white shadow-sm">
+                            <img src="https://i.pravatar.cc/150?u=2" class="w-7 h-7 rounded-full border-2 border-white shadow-sm">
+                            <div class="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold">+3</div>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-400 italic">Il y a 2 heures</span>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center text-sm border-b border-slate-50 pb-3">
+                            <span class="text-slate-500 font-medium">Surface à traiter</span>
+                            <span class="font-black text-slate-800">1,200 m²</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm border-b border-slate-50 pb-3">
+                            <span class="text-slate-500 font-medium">Budget estimé</span>
+                            <span class="font-black text-blue-600">450,000,000 Ar</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-slate-500 font-medium">Entreprise</span>
+                            <span class="px-3 py-1 bg-slate-100 rounded-lg font-black text-[10px] uppercase">Colas Madagascar</span>
+                        </div>
+                    </div>
+
+                    <button class="w-full mt-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-200 flex items-center justify-center">
+                        Consulter les photos
+                        <i class="fas fa-chevron-right ml-3 text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER (Style V1 Pill-shape) -->
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 glass-v1 px-8 py-4 rounded-full shadow-2xl flex items-center space-x-10 z-50 pointer-events-auto border border-white/50">
+        <i class="fas fa-home text-blue-600 text-lg cursor-pointer transform hover:scale-110 transition"></i>
+        <i class="fas fa-map-marked-alt text-slate-400 hover:text-slate-600 text-lg cursor-pointer transition"></i>
+        <i class="fas fa-plus-circle text-slate-300 text-xl cursor-not-allowed"></i>
+        <i class="fas fa-chart-line text-slate-400 hover:text-slate-600 text-lg cursor-pointer transition"></i>
+        <i class="fas fa-cog text-slate-400 hover:text-slate-600 text-lg cursor-pointer transition"></i>
+    </div>
+
+</body>
+</html>
+
+login.html :
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion — Studio</title>
+    <style>
+        :root {
+            /* Mode Clair - Animation en Noir discret */
+            --canvas: #f5f5f7; 
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent: #0066cc;
+            --input-bg: #ffffff;
+            --input-border: #d2d2d7;
+            --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            --dot-color: 0, 0, 0; /* Base RGB pour le noir */
+            --dot-opacity: 0.15;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* Mode Sombre - Animation en Blanc discret */
+                --canvas: #000000; 
+                --card-bg: rgba(28, 28, 30, 0.8);
+                --text-primary: #f5f5f7;
+                --text-secondary: #a1a1a6;
+                --accent: #2997ff;
+                --input-bg: #1c1c1e;
+                --input-border: #424245;
+                --card-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+                --dot-color: 255, 255, 255; /* Base RGB pour le blanc */
+                --dot-opacity: 0.2;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--canvas);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100dvh;
+            overflow: hidden;
+        }
+
+        #canvas-dots {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid rgba(var(--dot-color), 0.1);
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 40px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        input {
+            width: 100%;
+            height: 50px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            padding: 0 15px;
+            font-size: 16px;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            border-width: 2px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            height: 50px;
+            background-color: var(--text-primary);
+            color: var(--canvas);
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 15px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary:hover { opacity: 0.85; }
+
+        .actions {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .actions a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .separator {
+            width: 1px;
+            height: 12px;
+            background-color: var(--text-secondary);
+            opacity: 0.3;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas-dots"></canvas>
+
+    <div class="login-wrapper">
+        <main class="card">
+            <div class="logo"></div>
+            <h1>Identifiant</h1>
+            <p class="subtitle">Un seul compte pour vos services Studio.</p>
+
+            <form action="#" onsubmit="return false;">
+                <input type="email" placeholder="Email ou téléphone" required>
+                <input type="password" placeholder="Mot de passe" required>
+                <button type="submit" class="btn-primary">Continuer</button>
+            </form>
+
+            <div class="actions">
+                <a href="#">Oublié ?</a>
+                <span class="separator"></span>
+                <a href="#">Créer un compte</a>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Données et confidentialité</p>
+        </footer>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas-dots');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        }
+
+        window.addEventListener('resize', resize);
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vy = (Math.random() - 0.5) * 0.3;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+            draw(colorRGB, opacity) {
+                ctx.fillStyle = `rgba(${colorRGB}, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            particles = [];
+            const count = (canvas.width * canvas.height) / 12000;
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Récupère les couleurs CSS dynamiquement
+            const style = getComputedStyle(document.documentElement);
+            const colorRGB = style.getPropertyValue('--dot-color').trim();
+            const baseOpacity = parseFloat(style.getPropertyValue('--dot-opacity'));
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw(colorRGB, baseOpacity);
+
+                for (let j = i; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 150) {
+                        const opacity = (1 - dist / 150) * baseOpacity;
+                        ctx.strokeStyle = `rgba(${colorRGB}, ${opacity})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        resize();
+        animate();
+    </script>
+</body>
+</html>

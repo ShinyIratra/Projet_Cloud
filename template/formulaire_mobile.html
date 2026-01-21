@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saisie Intervention — RoadWatch Tana</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f1f5f9; 
+            color: #1e293b;
+        }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 32px;
+            padding: 32px;
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin-bottom: 10px;
+            padding-left: 4px;
+        }
+
+        .custom-input {
+            width: 100%;
+            background: #f8fafc;
+            border: 2px solid #f1f5f9;
+            border-radius: 18px;
+            padding: 16px 20px;
+            font-weight: 700;
+            color: #1e293b;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .custom-input:focus {
+            background: white;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.08);
+        }
+
+        /* Style spécifique pour les icônes d'input */
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 20px;
+            color: #cbd5e1;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="pb-20">
+
+    <!-- NAVBAR -->
+    <nav class="glass-nav fixed top-0 w-full z-50 h-16 flex items-center justify-between px-6">
+        <div class="flex items-center space-x-4">
+            <a href="javascript:history.back()" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            <div class="text-lg font-extrabold tracking-tight">Intervention</div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="pt-28 px-4 max-w-xl mx-auto">
+        
+        <div class="mb-8 text-center">
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Détails techniques</h1>
+            <p class="text-slate-500 font-medium text-sm">Enregistrement des données de chantier</p>
+        </div>
+
+        <form class="space-y-4">
+            
+            <div class="form-card space-y-6">
+                
+                <!-- 1. DATE -->
+                <div class="input-group">
+                    <label><i class="far fa-calendar-alt mr-2 text-blue-500"></i> Date de l'intervention</label>
+                    <div class="input-wrapper">
+                        <input type="date" class="custom-input" required>
+                    </div>
+                </div>
+
+                <!-- 2. SURFACE -->
+                <div class="input-group">
+                    <label><i class="fas fa-ruler-combined mr-2 text-blue-500"></i> Surface estimée (m²)</label>
+                    <div class="input-wrapper">
+                        <input type="number" placeholder="Ex: 1200" class="custom-input" required>
+                        <span class="input-icon font-bold text-xs">m²</span>
+                    </div>
+                </div>
+
+                <!-- 3. BUDGET -->
+                <div class="input-group">
+                    <label><i class="fas fa-wallet mr-2 text-blue-500"></i> Budget alloué (Ar)</label>
+                    <div class="input-wrapper">
+                        <input type="text" placeholder="Ex: 45 000 000" class="custom-input" required>
+                        <span class="input-icon font-bold text-xs">Ar</span>
+                    </div>
+                </div>
+
+                <!-- 4. ENTREPRISE -->
+                <div class="input-group">
+                    <label><i class="fas fa-hard-hat mr-2 text-blue-500"></i> Entreprise concernée</label>
+                    <div class="input-wrapper">
+                        <select class="custom-input appearance-none cursor-pointer">
+                            <option value="" disabled selected>Sélectionner l'entreprise</option>
+                            <option>Colas Madagascar</option>
+                            <option>Sogea Satom</option>
+                            <option>SMATP</option>
+                            <option>GEC Madagascar</option>
+                            <option>Hery Construction</option>
+                        </select>
+                        <i class="fas fa-chevron-down input-icon text-[10px]"></i>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- SUBMIT BUTTON -->
+            <div class="pt-4">
+                <button type="submit" class="w-full bg-slate-900 text-white py-5 rounded-[22px] font-black uppercase tracking-widest text-xs shadow-xl shadow-slate-200 active:scale-[0.98] transition-all">
+                    Enregistrer les données
+                </button>
+                <button type="button" class="w-full mt-3 py-4 text-slate-400 font-bold text-xs uppercase tracking-widest">
+                    Annuler
+                </button>
+            </div>
+
+        </form>
+    </main>
+
+    <!-- SUCCESS TOAST (Masqué par défaut) -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-full shadow-2xl flex items-center space-x-3 opacity-0 pointer-events-none transition-all duration-500">
+        <i class="fas fa-check-circle"></i>
+        <span class="text-xs font-bold uppercase tracking-wider">Données enregistrées</span>
+    </div>
+
+</body>
+</html>
