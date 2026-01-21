@@ -1,11 +1,13 @@
+import ApiModel from "../models/ApiModel.js";
+
 import UserModel from "../models/UserModel.js";
+
 import axios from "axios";
 import { admin, db } from "../config/firebase.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Récupération de la clé API Web depuis le .env
 const API_KEY = process.env.FIREBASE_WEB_API_KEY;
 
 const authController = 
@@ -16,62 +18,95 @@ const authController =
 
         try 
         {
-            // On demande à Firebase de créer l'utilisateur
             const userRecord = await admin.auth().createUser({
                 email: email,
                 password: password,
                 displayName: displayName
             });
             
-            // Si type_user non mentionné, on le met par défaut à "utilisateur"
-            if(type_user == null || type_user == undefined)
-            {
-                type_user = "utilisateur";
-            }
-
-            const user = UserModel.create(userRecord.uid, 0, "active", type_user);
+            const userType = type_user || "utilisateur";
+            const user = new UserModel(userRecord.uid, 0, "active", userType);
 
             const userRef = db.collection("users").doc(user.getUID());
             await userRef.set({ 
                 "UID": user.getUID(), 
+                "email": email,
                 "failed_login_attempt": user.getFailedLoginAttempt(), 
                 "status": user.getStatus(), 
                 "type_user": user.getTypeUser() 
             });
         
-            res.status(201).json({ 
-                message: "Utilisateur créé avec succès sur Firebase", 
-                uid: userRecord.uid 
-            });
+            const response = new ApiModel("success", { uid: userRecord.uid }, "Utilisateur créé avec succès sur Firebase");
+            res.status(201).json(response);
 
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            const response = new ApiModel("error", null, error.message);
+            res.status(500).json(response);
         }
     },
 
-    async login(req, res)
-    {
+    async login(req, res) {
         const { email, password } = req.body;
 
+        // Vérifiez si l'utilisateur existe dans Firestore
+        const userSnapshot = await db.collection("users").where("email", "==", email).get();
+        if (userSnapshot.empty) {
+            const apiResponse = new ApiModel("error", null, "Compte non trouvé");
+            return res.status(404).json(apiResponse);
+        }
+
+        const userData = userSnapshot.docs[0].data();
+        const userRef = db.collection("users").doc(userSnapshot.docs[0].id);
+
+        // Vérifiez si l'utilisateur est bloqué
+        if (userData.status === "blocked") {
+            const apiResponse = new ApiModel("error", null, "Compte bloqué. Veuillez contacter un administrateur.");
+            return res.status(403).json(apiResponse);
+        }
+
         try {
-            // URL officielle donnée dans le PDF pour le login email/password
+            // Tentative de connexion avec Firebase Authentication
             const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`;
-            
-            // On envoie les infos à Google
             const response = await axios.post(url, {
                 email: email,
                 password: password,
                 returnSecureToken: true
             });
 
-            // Google répond OK : on renvoie le token au client
-            res.json(response.data);
+            // Réinitialisez les tentatives échouées en cas de succès
+            await userRef.update({
+                failed_login_attempt: 0
+            });
+
+            const apiResponse = new ApiModel("success", response.data, "Connexion réussie");
+            res.json(apiResponse);
 
         } catch (error) {
-            // Google répond ERREUR (mauvais mdp, user inconnu...)
-            // On renvoie l'erreur
+
+            const maxAttempts = await getRemoteConfigValue('MAX_LOGIN_ATTEMPTS') || 3;
+
+            // Vérifiez si l'erreur est liée à un mot de passe invalide ou des informations d'identification incorrectes
+            if (
+                error.response &&
+                (error.response.data.error.message === "INVALID_PASSWORD" ||
+                 error.response.data.error.message === "INVALID_LOGIN_CREDENTIALS")
+            ) {
+                const newAttempts = (userData.failed_login_attempt || 0) + 1;
+
+                if (newAttempts >= maxAttempts) {
+                    await userRef.update({ failed_login_attempt: newAttempts, status: "blocked" });
+                } else {
+                    await userRef.update({ failed_login_attempt: newAttempts });
+                }
+
+                const apiResponse = new ApiModel("error", null, "Mot de passe incorrect. Tentative échouée.");
+                return res.status(401).json(apiResponse);
+            }
+
+            // Autres erreurs
             const errorMessage = error.response ? error.response.data.error.message : "Erreur serveur";
-            res.status(401).json({ error: "Echec de connexion", details: errorMessage });
+            const apiResponse = new ApiModel("error", null, `Echec de connexion: ${errorMessage}`);
+            res.status(500).json(apiResponse);
         }
     },
 
@@ -82,15 +117,42 @@ const authController =
         try
         {
             const updateData = {};
-            
             if (email) updateData.email = email;
             if (password) updateData.password = password;
-            
-            // On met à jour l'utilisateur dans Firebase
+
             await admin.auth().updateUser(uid, updateData);
-            res.json({ message: "Utilisateur mis à jour avec succès" });
+            const response = new ApiModel("success", null, "Utilisateur mis à jour avec succès");
+            res.json(response);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            const response = new ApiModel("error", null, error.message);
+            res.status(500).json(response);
+        }
+    },
+
+    async unblockUser(req, res)
+    {
+        const { uid, manager_uid } = req.body;
+
+        const managerRef = await db.collection("users").doc(manager_uid).get();
+
+        if (!managerRef.exists || managerRef.data().type_user !== "manager") {
+            const response = new ApiModel("error", null, "Accès refusé. Seul un manager peut débloquer un utilisateur.");
+            return res.status(403).json(response);
+        }
+
+        try
+        {
+            const userRef = db.collection("users").doc(uid);
+            await userRef.update({
+                status: "active",
+                failed_login_attempt: 0
+            });
+
+            const response = new ApiModel("success", null, "Utilisateur débloqué avec succès");
+            res.json(response);
+        } catch (error) {
+            const response = new ApiModel("error", null, error.message);
+            res.status(500).json(response);
         }
     }
 };

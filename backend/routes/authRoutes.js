@@ -133,4 +133,36 @@ router.post('/login', authController.login);
  */
 router.put('/update', authController.updateEmailandPassword);
 
+/**
+ * @swagger
+ * /api/unblock:
+ *   post:
+ *     summary: Débloquer un utilisateur
+ *     tags: [Authentification]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - uid
+ *               - manager_uid
+ *             properties:
+ *               uid:
+ *                 type: string
+ *                 description: UID de l'utilisateur à débloquer
+ *               manager_uid:
+ *                 type: string
+ *                 description: UID du manager effectuant l'action
+ *     responses:
+ *       200:
+ *         description: Utilisateur débloqué avec succès
+ *       403:
+ *         description: Accès refusé
+ *       500:
+ *         description: Erreur serveur
+ */
+router.post('/unblock', authController.unblockUser);
+
 export default router;

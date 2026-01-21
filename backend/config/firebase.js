@@ -13,7 +13,20 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
+// Fonction pour récupérer une valeur de Remote Config
+async function getRemoteConfigValue(key) {
+    try {
+        const remoteConfig = admin.remoteConfig();
+        const template = await remoteConfig.getTemplate();
+        const value = template.parameters[key]?.defaultValue?.value;
+        return value ? parseInt(value, 10) : null; // Convertir en entier si nécessaire
+    } catch (error) {
+        console.error('Erreur lors de la récupération de Remote Config:', error);
+        return null;
+    }
+}
+
 const db = admin.firestore();
 
-export { admin, db };
+export { admin, db, getRemoteConfigValue };
 export default admin;
