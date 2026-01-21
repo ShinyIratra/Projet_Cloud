@@ -1,8 +1,7 @@
 {
-  "name": "backend",
+  "name": "roadalert",
   "version": "1.0.0",
-  "type": "module",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -16,9 +15,6 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "firebase": "^12.8.0",
-    "firebase-admin": "^13.6.0",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "firebase-admin": "^13.6.0"
   }
 }

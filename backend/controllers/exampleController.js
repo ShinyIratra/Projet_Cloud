@@ -1,5 +1,5 @@
 // Example controller
-const exampleModel = require('../models/exampleModel');
+import exampleModel from '../models/exampleModel.js';
 
 const exampleController = {
     addItem(req, res) {
@@ -12,4 +12,4 @@ const exampleController = {
     }
 };
 
-module.exports = exampleController;
+export default exampleController;
