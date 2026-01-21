@@ -1,7 +1,7 @@
 import express from 'express';
-import exampleRoutes from './routes/exampleRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import roadAlertRoutes from './routes/roadAlertRoutes.js';
 
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './config/swagger.js';
@@ -17,9 +17,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 
 // Note : Swagger utilise les chemins définis dans authRoutes.js (/api/login, etc.)
-app.use('/api', exampleRoutes);
 app.use('/api', authRoutes);
 app.use('/api', userRoutes);
+app.use('/api', roadAlertRoutes);
 
 // Start server
 app.listen(PORT, () => {
