@@ -1,0 +1,59 @@
+import { API_URL } from './config';
+
+export interface RoadAlert {
+  id?: string;
+  surface: number;
+  budget: number;
+  concerned_entreprise: string;
+  status: string;
+  latitude: number;
+  longitude: number;
+  UID: string;
+  date_alert: string;
+}
+
+export const fetchRoadAlerts = async (): Promise<RoadAlert[]> => {
+  const response = await fetch(`${API_URL}/road_alerts`);
+  if (!response.ok) throw new Error('Erreur lors du chargement des signalements');
+  const result = await response.json();
+  return result.data || [];
+};
+
+export const createRoadAlert = async (alert: Omit<RoadAlert, 'id'>): Promise<RoadAlert> => {
+  const response = await fetch(`${API_URL}/road_alerts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(alert),
+  });
+  if (!response.ok) throw new Error('Erreur lors de la création du signalement');
+  const result = await response.json();
+  return result.data;
+};
+
+export const updateRoadAlert = async (alert: RoadAlert): Promise<RoadAlert> => {
+  const response = await fetch(`${API_URL}/road_alerts`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(alert),
+  });
+  if (!response.ok) throw new Error('Erreur lors de la mise à jour');
+  const result = await response.json();
+  return result.data;
+};
+
+export const updateAlertStatus = async (id: string, status: string): Promise<RoadAlert> => {
+  const response = await fetch(`${API_URL}/road_alerts/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, status }),
+  });
+  const result = await response.json();
+  return result.data;
+};
+
+export const fetchUserAlerts = async (uid: string): Promise<RoadAlert[]> => {
+  const response = await fetch(`${API_URL}/api/road_alerts/user/${uid}`);
+  if (!response.ok) throw new Error('Erreur lors du chargement des signalements');
+  const result = await response.json();
+  return result.data || [];
+};
