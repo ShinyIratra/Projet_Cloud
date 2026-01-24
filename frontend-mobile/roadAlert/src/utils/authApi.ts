@@ -1,13 +1,10 @@
 import { API_URL } from './config';
 
 export interface LoginResponse {
-  token?: string;
-  user?: {
-    uid: string;
-    email: string;
-    displayName?: string;
-  };
-  message?: string;
+  idToken: string;
+  email: string;
+  refreshToken: string;
+  expiresIn: string;
 }
 
 export interface RegisterResponse {
@@ -25,7 +22,14 @@ export const loginUser = async (email: string, password: string): Promise<LoginR
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  if (!response.ok) throw new Error('Erreur de connexion');
+  
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Email ou mot de passe incorrect');
+    }
+    throw new Error('Erreur de connexion');
+  }
+  
   return response.json();
 };
 

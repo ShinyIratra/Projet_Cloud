@@ -31,4 +31,21 @@ const router = createRouter({
   routes
 })
 
+// Navigation guard pour protéger les routes
+router.beforeEach((to, from, next) => {
+  const authToken = localStorage.getItem('authToken');
+  const isAuthenticated = !!authToken;
+
+  // Si la route nécessite une authentification
+  if (to.path !== '/login' && !isAuthenticated) {
+    // Rediriger vers login
+    next('/login');
+  } else if (to.path === '/login' && isAuthenticated) {
+    // Si déjà connecté et essaie d'aller sur login, rediriger vers dashboard
+    next('/dashboard');
+  } else {
+    next();
+  }
+});
+
 export default router

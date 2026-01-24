@@ -46,59 +46,31 @@
       </div>
 
       <!-- BOTTOM SHEET (Détails) -->
-      <div id="bottom-sheet" :class="{ active: isSheetActive }">
-        <div class="sheet-handle" @click="closeSheet"></div>
-        
-        <div class="px-6 pb-10" v-if="selectedAlert">
-          <div class="flex justify-between items-start mb-4">
-            <div>
-              <span 
-                :class="['text-[10px] font-black uppercase px-2 py-1 rounded-md', getStatusClass(selectedAlert.status)]"
-              >
-                {{ selectedAlert.status }}
-              </span>
-              <h2 class="text-xl font-extrabold text-slate-800 mt-2">
-                {{ selectedAlert.concerned_entreprise }}
-              </h2>
-              <p class="text-xs text-slate-400 font-medium">
-                Signalé le {{ formatDate(selectedAlert.date_alert) }}
-              </p>
-            </div>
-            <button @click="closeSheet" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
+      <RoadAlertDetail 
+        :isOpen="isSheetActive" 
+        :alert="selectedAlert" 
+        @close="closeSheet"
+      />
 
-          <div class="grid grid-cols-2 gap-3 mb-6">
-            <div class="bg-slate-50 p-3 rounded-xl">
-              <p class="text-[10px] uppercase font-bold text-slate-400">Surface</p>
-              <p class="font-bold text-slate-700">{{ selectedAlert.surface }} m²</p>
-            </div>
-            <div class="bg-slate-50 p-3 rounded-xl">
-              <p class="text-[10px] uppercase font-bold text-slate-400">Budget</p>
-              <p class="font-bold text-green-600">{{ formatBudget(selectedAlert.budget) }}</p>
-            </div>
-          </div>
+      <!-- MODAL DE CRÉATION -->
+      <CreateRoadAlert
+        :isOpen="showCreateModal"
+        :selectedLocation="tempMarkerLocation"
+        @close="closeCreateMode"
+        @clearLocation="clearTempMarker"
+        @refresh="handleRefresh"
+      />
 
-          <div class="rounded-2xl overflow-hidden mb-6 h-40 bg-slate-100 flex items-center justify-center">
-            <i class="fas fa-road text-6xl text-slate-300"></i>
+      <!-- INDICATEUR MODE CRÉATION -->
+      <div v-if="isCreateMode && !showCreateModal" class="creation-mode-indicator">
+        <div class="indicator-content">
+          <i class="fas fa-map-marker-alt pulse-icon"></i>
+          <div>
+            <p class="indicator-title">Mode création activé</p>
+            <p class="indicator-text">Touchez la carte pour placer un marqueur</p>
           </div>
-
-          <div class="flex items-center justify-between p-4 bg-blue-50 rounded-2xl">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-                <i class="fas fa-hard-hat"></i>
-              </div>
-              <div>
-                <p class="text-[10px] font-bold text-blue-400 uppercase leading-none">Entreprise</p>
-                <p class="font-bold text-blue-900">{{ selectedAlert.concerned_entreprise }}</p>
-              </div>
-            </div>
-            <i class="fas fa-chevron-right text-blue-300"></i>
-          </div>
-          
-          <button class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold mt-6 shadow-lg active:scale-95 transition">
-            Suivre l'avancement
+          <button @click="closeCreateMode" class="cancel-btn">
+            <i class="fas fa-times"></i>
           </button>
         </div>
       </div>
@@ -135,6 +107,8 @@ import { fetchRoadAlerts, type RoadAlert } from '../utils/roadAlertApi';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './Home.css';
+import RoadAlertDetail from '../components/RoadAlertDetail.vue';
+import CreateRoadAlert from '../components/CreateRoadAlert.vue';
 
 const router = useRouter();
 const mapContainer = ref<HTMLElement | null>(null);
@@ -145,9 +119,13 @@ const activeFilter = ref('all');
 const activeTab = ref('explorer');
 const isLoading = ref(false);
 const roadAlerts = ref<RoadAlert[]>([]);
+const isCreateMode = ref(false); // Mode sélection d'emplacement actif
+const showCreateModal = ref(false); // Afficher la modal de création
+const tempMarkerLocation = ref<{ lat: number; lng: number } | null>(null);
 
 let map: L.Map | null = null;
 let markers: L.Marker[] = [];
+let tempMarker: L.Marker | null = null;
 
 const filters = [
   { value: 'all', label: 'Tous', icon: 'fa-list' },
@@ -168,24 +146,6 @@ const filteredAlerts = computed(() => {
   return roadAlerts.value.filter(alert => alert.status === activeFilter.value);
 });
 
-const getStatusClass = (status: string) => {
-  const classes: Record<string, string> = {
-    'nouveau': 'bg-red-100 text-red-700',
-    'en_cours': 'bg-blue-100 text-blue-700',
-    'termine': 'bg-green-100 text-green-700',
-  };
-  return classes[status] || 'bg-gray-100 text-gray-700';
-};
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-};
-
-const formatBudget = (budget: number) => {
-  return new Intl.NumberFormat('fr-MG', { style: 'currency', currency: 'MGA', maximumFractionDigits: 0 }).format(budget);
-};
-
 const initMap = () => {
   if (!mapContainer.value) return;
 
@@ -195,9 +155,15 @@ const initMap = () => {
     attribution: '&copy; OpenStreetMap contributors',
   }).addTo(map);
 
-  // Fermer le bottom sheet quand on clique sur la carte
-  map.on('click', () => {
-    if (isSheetActive.value) closeSheet();
+  // Gérer les clics sur la carte
+  map.on('click', (e: L.LeafletMouseEvent) => {
+    if (isCreateMode.value) {
+      // Mode création : placer un marqueur temporaire
+      placeTempMarker(e.latlng);
+    } else {
+      // Mode normal : fermer le bottom sheet
+      if (isSheetActive.value) closeSheet();
+    }
   });
 };
 
@@ -223,11 +189,14 @@ const updateMarkers = () => {
 
   // Ajouter les nouveaux marqueurs
   filteredAlerts.value.forEach(alert => {
-    // Utiliser lattitude/longitude comme dans l'API response
-    const lat = alert.latitude || (alert as any).lattitude;
+    // L'API retourne lattitude (avec double t) au lieu de latitude
+    const lat = alert.lattitude || alert.latitude;
     const lng = alert.longitude;
 
-    if (!lat || !lng) return;
+    if (!lat || !lng) {
+      console.log('Coordonnées manquantes pour:', alert);
+      return;
+    }
 
     const icon = L.divIcon({
       className: 'custom-icon',
@@ -248,9 +217,11 @@ const openSheet = (alert: RoadAlert) => {
 
   // Centrer la carte sur le marqueur sélectionné
   if (map) {
-    const lat = alert.latitude || (alert as any).lattitude;
+    const lat = alert.lattitude || alert.latitude;
     const lng = alert.longitude;
-    map.flyTo([lat - 0.005, lng], 15);
+    if (lat && lng) {
+      map.flyTo([lat - 0.005, lng], 15);
+    }
   }
 };
 
@@ -270,8 +241,52 @@ const toggleMenu = () => {
 };
 
 const handleAddAlert = () => {
-  console.log('Add new alert');
-  // TODO: Naviguer vers une page de création d'alerte
+  isCreateMode.value = true;
+  closeSheet(); // Fermer le détail si ouvert
+  // Ne pas ouvrir la modal tout de suite, attendre que l'utilisateur clique sur la carte
+};
+
+const closeCreateMode = () => {
+  isCreateMode.value = false;
+  showCreateModal.value = false;
+  clearTempMarker();
+};
+
+const placeTempMarker = (latlng: L.LatLng) => {
+  if (!map) return;
+
+  // Supprimer l'ancien marqueur temporaire
+  if (tempMarker) {
+    tempMarker.remove();
+  }
+
+  // Créer un nouveau marqueur rouge pour indiquer la sélection
+  const icon = L.divIcon({
+    className: 'custom-icon',
+    html: `<div class="marker-pin temp-marker"><i class="fas fa-map-marker-alt"></i></div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+  });
+
+  tempMarker = L.marker([latlng.lat, latlng.lng], { icon }).addTo(map);
+  tempMarkerLocation.value = { lat: latlng.lat, lng: latlng.lng };
+  
+  // Ouvrir automatiquement la modal une fois l'emplacement sélectionné
+  setTimeout(() => {
+    showCreateModal.value = true;
+  }, 100);
+};
+
+const clearTempMarker = () => {
+  if (tempMarker) {
+    tempMarker.remove();
+    tempMarker = null;
+  }
+  tempMarkerLocation.value = null;
+};
+
+const handleRefresh = async () => {
+  await loadRoadAlerts();
 };
 
 const handleTabClick = (tabName: string) => {

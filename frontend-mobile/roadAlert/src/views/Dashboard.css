@@ -80,6 +80,29 @@
   gap: 1rem;
 }
 
+.logout-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 1.125rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-btn:hover {
+  background: #f1f5f9;
+  color: #ef4444;
+}
+
+.logout-btn:active {
+  transform: scale(0.95);
+}
+
 .profile-avatar {
   width: 2.5rem;
   height: 2.5rem;
@@ -106,6 +129,11 @@
 /* HEADER */
 .dashboard-header {
   margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .header-badge {
@@ -122,6 +150,68 @@
   color: #0f172a;
   letter-spacing: -0.02em;
   margin: 0.25rem 0 0 0;
+}
+
+/* FILTER TOGGLE */
+.filter-toggle {
+  display: flex;
+  background: white;
+  border-radius: 16px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.filter-btn i {
+  font-size: 0.875rem;
+}
+
+.filter-btn:hover {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.filter-btn.active {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.filter-btn.active:hover {
+  background: #1d4ed8;
+  color: white;
+}
+
+@media (max-width: 640px) {
+  .filter-toggle {
+    width: 100%;
+  }
+  
+  .filter-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 12px 8px;
+  }
+  
+  .filter-btn span {
+    font-size: 0.75rem;
+  }
 }
 
 /* STATS GRID */

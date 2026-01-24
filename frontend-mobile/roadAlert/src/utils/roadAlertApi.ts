@@ -6,7 +6,8 @@ export interface RoadAlert {
   budget: number;
   concerned_entreprise: string;
   status: string;
-  latitude: number;
+  latitude?: number;
+  lattitude?: number;  // L'API retourne lattitude au lieu de latitude
   longitude: number;
   UID: string;
   date_alert: string;
@@ -15,6 +16,13 @@ export interface RoadAlert {
 export const fetchRoadAlerts = async (): Promise<RoadAlert[]> => {
   const response = await fetch(`${API_URL}/road_alerts`);
   if (!response.ok) throw new Error('Erreur lors du chargement des signalements');
+  const result = await response.json();
+  return result.data || [];
+};
+
+export const fetchUserRoadAlerts = async (uid: string): Promise<RoadAlert[]> => {
+  const response = await fetch(`${API_URL}/road_alerts/user/${uid}`);
+  if (!response.ok) throw new Error('Erreur lors du chargement des signalements utilisateur');
   const result = await response.json();
   return result.data || [];
 };

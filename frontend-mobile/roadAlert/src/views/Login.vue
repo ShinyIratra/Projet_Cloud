@@ -144,16 +144,22 @@ const handleSubmit = async () => {
   try {
     const response = await loginUser(email.value, password.value);
     
-    if (response.token && response.user) {
-      // Stocker le token et les informations utilisateur
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      // Rediriger vers la page d'accueil
-      router.push('/home');
-    } else {
-      errorMessage.value = response.message || 'Erreur de connexion';
-    }
+    // Stocker les tokens et informations utilisateur
+    localStorage.setItem('authToken', response.idToken);
+    localStorage.setItem('refreshToken', response.refreshToken);
+    
+    // Décoder le token pour extraire l'UID
+    const tokenPayload = JSON.parse(atob(response.idToken.split('.')[1]));
+    const userUID = tokenPayload.user_id || tokenPayload.uid;
+    
+    localStorage.setItem('user', JSON.stringify({
+      UID: userUID,
+      email: response.email,
+      expiresIn: response.expiresIn
+    }));
+    
+    // Rediriger vers le Dashboard
+    router.push('/dashboard');
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Erreur de connexion';
   } finally {
