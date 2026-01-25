@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import roadAlertRoutes from './routes/roadAlertRoutes.js';
@@ -8,6 +9,14 @@ import swaggerSpecs from './config/swagger.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Middleware CORS
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:8100', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Middleware
 app.use(express.json());
