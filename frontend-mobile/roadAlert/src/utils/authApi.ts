@@ -7,6 +7,12 @@ export interface LoginResponse {
   expiresIn: string;
 }
 
+export interface ApiResponse<T> {
+  status: 'success' | 'error';
+  data: T | null;
+  message: string;
+}
+
 export interface RegisterResponse {
   token?: string;
   user?: {
@@ -17,38 +23,65 @@ export interface RegisterResponse {
 }
 
 export const loginUser = async (email: string, password: string): Promise<LoginResponse> => {
-  const response = await fetch(`${API_URL}/api/login`, {
+  const response = await fetch(`${API_URL}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
   
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('Email ou mot de passe incorrect');
-    }
-    throw new Error('Erreur de connexion');
+  const apiResponse: ApiResponse<LoginResponse> = await response.json();
+  
+  if (apiResponse.status === 'error' || !apiResponse.data) {
+    throw new Error(apiResponse.message || 'Erreur de connexion');
   }
   
-  return response.json();
+  return apiResponse.data;
 };
 
-export const registerUser = async (email: string, password: string): Promise<RegisterResponse> => {
-  const response = await fetch(`${API_URL}/api/register`, {
+export const registerUser = async (
+  email: string, 
+  password: string, 
+  displayName: string = '',
+  type_user: string = 'utilisateur'
+): Promise<RegisterResponse> => {
+  const response = await fetch(`${API_URL}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, displayName, type_user }),
   });
-  if (!response.ok) throw new Error('Erreur lors de l\'inscription');
-  return response.json();
+  
+  const apiResponse: ApiResponse<{ uid: string }> = await response.json();
+  
+  if (apiResponse.status === 'error') {
+    throw new Error(apiResponse.message || 'Erreur lors de l\'inscription');
+  }
+  
+  return {
+    user: {
+      uid: apiResponse.data?.uid || '',
+      email: email
+    },
+    message: apiResponse.message
+  };
 };
 
-export const updateUser = async (email?: string, password?: string) => {
-  const response = await fetch(`${API_URL}/api/update`, {
+export const updateUser = async (uid: string, email?: string, password?: string) => {
+  const updateData: { uid: string; email?: string; password?: string } = { uid };
+  
+  if (email) updateData.email = email;
+  if (password) updateData.password = password;
+
+  const response = await fetch(`${API_URL}/update`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(updateData),
   });
-  if (!response.ok) throw new Error('Erreur lors de la mise à jour');
-  return response.json();
+  
+  const apiResponse: ApiResponse<null> = await response.json();
+  
+  if (apiResponse.status === 'error') {
+    throw new Error(apiResponse.message || 'Erreur lors de la mise à jour');
+  }
+  
+  return apiResponse;
 };

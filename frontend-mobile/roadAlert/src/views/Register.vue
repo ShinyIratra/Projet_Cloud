@@ -1,12 +1,12 @@
 <template>
-  <ion-page class="login-page">
-    <ion-content fullscreen class="login-content">
-      <canvas ref="canvasRef" class="login-canvas" />
-      <div class="login-wrapper">
+  <ion-page class="register-page">
+    <ion-content fullscreen class="register-content">
+      <canvas ref="canvasRef" class="register-canvas" />
+      <div class="register-wrapper">
         <main class="card">
           <div class="logo" aria-hidden>●</div>
-          <h1>Identifiant</h1>
-          <p class="subtitle">Entrer vos identifiants</p>
+          <h1>Créer un compte</h1>
+          <p class="subtitle">Inscrivez-vous pour commencer</p>
 
           <div 
             v-if="errorMessage" 
@@ -16,12 +16,27 @@
             <p class="error-text">{{ errorMessage }}</p>
           </div>
 
+          <div 
+            v-if="successMessage" 
+            class="success-container" 
+            aria-live="polite"
+          >
+            <p class="success-text">{{ successMessage }}</p>
+          </div>
+
           <form @submit.prevent="handleSubmit">
+            <input 
+              v-model="displayName"
+              type="text" 
+              name="displayName" 
+              placeholder="Nom complet" 
+              required 
+            />
             <input 
               v-model="email"
               type="email" 
               name="email" 
-              placeholder="Email ou téléphone" 
+              placeholder="Email" 
               required 
             />
             <input 
@@ -30,16 +45,44 @@
               name="password" 
               placeholder="Mot de passe" 
               required 
+              minlength="6"
             />
+            <input 
+              v-model="confirmPassword"
+              type="password" 
+              name="confirmPassword" 
+              placeholder="Confirmer le mot de passe" 
+              required 
+              minlength="6"
+            />
+            
+            <div class="user-type-selector">
+              <label>
+                <input 
+                  type="radio" 
+                  v-model="typeUser" 
+                  value="utilisateur" 
+                  checked 
+                />
+                <span>Utilisateur</span>
+              </label>
+              <label>
+                <input 
+                  type="radio" 
+                  v-model="typeUser" 
+                  value="manager" 
+                />
+                <span>Manager</span>
+              </label>
+            </div>
+
             <button type="submit" class="btn-primary" :disabled="isLoading">
-              {{ isLoading ? 'Connexion...' : 'Continuer' }}
+              {{ isLoading ? 'Inscription...' : "S'inscrire" }}
             </button>
           </form>
 
           <div class="actions">
-            <a href="#" @click.prevent="handleForgotPassword">Oublié ?</a>
-            <span class="separator" />
-            <a href="#" @click.prevent="handleCreateAccount">Créer un compte</a>
+            <a href="#" @click.prevent="handleBackToLogin">Déjà un compte ? Se connecter</a>
           </div>
         </main>
 
@@ -55,8 +98,8 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { IonContent, IonPage } from '@ionic/vue';
 import { useRouter } from 'vue-router';
-import { loginUser } from '../utils/authApi';
-import './Login.css';
+import { registerUser } from '../utils/authApi';
+import './Register.css';
 
 type Particle = {
   x: number;
@@ -68,9 +111,13 @@ type Particle = {
 
 const router = useRouter();
 const canvasRef = ref<HTMLCanvasElement | null>(null);
+const displayName = ref('');
 const email = ref('');
 const password = ref('');
+const confirmPassword = ref('');
+const typeUser = ref('utilisateur');
 const errorMessage = ref('');
+const successMessage = ref('');
 const isLoading = ref(false);
 
 let particles: Particle[] = [];
@@ -139,41 +186,39 @@ const resize = (canvas: HTMLCanvasElement) => {
 
 const handleSubmit = async () => {
   errorMessage.value = '';
+  successMessage.value = '';
+
+  // Validation
+  if (password.value !== confirmPassword.value) {
+    errorMessage.value = 'Les mots de passe ne correspondent pas';
+    return;
+  }
+
+  if (password.value.length < 6) {
+    errorMessage.value = 'Le mot de passe doit contenir au moins 6 caractères';
+    return;
+  }
+
   isLoading.value = true;
 
   try {
-    const response = await loginUser(email.value, password.value);
+    await registerUser(email.value, password.value, displayName.value, typeUser.value);
     
-    // Stocker les tokens et informations utilisateur
-    localStorage.setItem('authToken', response.idToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
+    successMessage.value = 'Inscription réussie ! Redirection vers la connexion...';
     
-    // Décoder le token pour extraire l'UID
-    const tokenPayload = JSON.parse(atob(response.idToken.split('.')[1]));
-    const userUID = tokenPayload.user_id || tokenPayload.uid;
-    
-    localStorage.setItem('user', JSON.stringify({
-      UID: userUID,
-      email: response.email,
-      expiresIn: response.expiresIn
-    }));
-    
-    // Rediriger vers Home
-    router.push('/home');
+    // Rediriger vers la page de connexion après 2 secondes
+    setTimeout(() => {
+      router.push('/login');
+    }, 2000);
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Erreur de connexion';
+    errorMessage.value = error instanceof Error ? error.message : "Erreur lors de l'inscription";
   } finally {
     isLoading.value = false;
   }
 };
 
-const handleForgotPassword = () => {
-  // TODO: Implémenter la récupération de mot de passe
-  console.log('Mot de passe oublié');
-};
-
-const handleCreateAccount = () => {
-  router.push('/register');
+const handleBackToLogin = () => {
+  router.push('/login');
 };
 
 onMounted(() => {

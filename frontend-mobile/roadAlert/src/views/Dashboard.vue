@@ -2,20 +2,13 @@
   <ion-page class="dashboard-page">
     <ion-content :fullscreen="true" class="dashboard-content-wrapper">
       <!-- NAVBAR -->
-      <nav class="glass-nav">
-        <div class="navbar-brand">
-          Road<span class="brand-accent">Alert</span>
-          <span class="brand-tag">Tana</span>
-        </div>
-        <div class="navbar-right">
-          <button @click="handleLogout" class="logout-btn" title="Se déconnecter">
-            <i class="fas fa-sign-out-alt"></i>
-          </button>
-          <div class="profile-avatar">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="profile" />
-          </div>
-        </div>
-      </nav>
+      <TopNavBar 
+        :showBrand="true"
+        :showUserMenu="true"
+        :isAuthenticated="isAuthenticated"
+        @logout="handleLogout"
+        @login="router.push('/login')"
+      />
 
       <!-- MAIN CONTENT -->
       <main class="dashboard-content">
@@ -29,7 +22,7 @@
           <!-- FILTRE MES SIGNALEMENTS -->
           <div class="filter-toggle">
             <button 
-              @click="showMyAlertsOnly = false"
+              @click="toggleAllAlerts"
               :class="['filter-btn', { active: !showMyAlertsOnly }]"
             >
               <i class="fas fa-globe"></i>
@@ -136,17 +129,7 @@
       </main>
 
       <!-- BOTTOM NAVIGATION -->
-      <div class="bottom-nav">
-        <div 
-          v-for="tab in tabs" 
-          :key="tab.name"
-          @click="handleTabClick(tab.name)"
-          :class="['nav-item', { active: activeTab === tab.name }]"
-        >
-          <i :class="`fas ${tab.icon}`"></i>
-          <span>{{ tab.label }}</span>
-        </div>
-      </div>
+      <BottomNavBar :activeTab="activeTab" />
     </ion-content>
   </ion-page>
 </template>
@@ -159,6 +142,8 @@ import { fetchRoadAlerts, fetchUserRoadAlerts, type RoadAlert } from '../utils/r
 import AlertsChart from '../components/AlertsChart.vue';
 import CompaniesCard from '../components/CompaniesCard.vue';
 import AlertsTable from '../components/AlertsTable.vue';
+import TopNavBar from '../components/TopNavBar.vue';
+import BottomNavBar from '../components/BottomNavBar.vue';
 import './Dashboard.css';
 
 const router = useRouter();
@@ -166,6 +151,13 @@ const isLoading = ref(false);
 const alerts = ref<RoadAlert[]>([]);
 const activeTab = ref('stats');
 const showMyAlertsOnly = ref(false);
+const isAuthenticated = ref(false);
+
+// Vérifier l'authentification
+const checkAuth = () => {
+  const authToken = localStorage.getItem('authToken');
+  isAuthenticated.value = !!authToken;
+};
 
 // UID de l'utilisateur - récupéré depuis le localStorage
 const getUserUID = (): string => {
@@ -207,13 +199,6 @@ const stats = ref<DashboardStats>({
 
 const companyStats = ref<CompanyStats[]>([]);
 
-const tabs = [
-  { name: 'explorer', label: 'Explorer', icon: 'fa-map-marked-alt' },
-  { name: 'stats', label: 'Stats', icon: 'fa-chart-pie' },
-  { name: 'alerts', label: 'Alertes', icon: 'fa-bell' },
-  { name: 'profile', label: 'Profil', icon: 'fa-user' },
-];
-
 const recentAlerts = computed(() => {
   return alerts.value.slice(0, 10); // Show only 10 most recent
 });
@@ -243,7 +228,20 @@ const loadData = async () => {
 };
 
 const toggleMyAlerts = () => {
+  // Vérifier si l'utilisateur est connecté
+  const authToken = localStorage.getItem('authToken');
+  if (!authToken) {
+    // Rediriger vers la page de connexion
+    router.push('/login');
+    return;
+  }
+  
   showMyAlertsOnly.value = true;
+  loadData();
+};
+
+const toggleAllAlerts = () => {
+  showMyAlertsOnly.value = false;
   loadData();
 };
 
@@ -291,13 +289,6 @@ const formatBudget = (budget: number) => {
   return budget.toLocaleString('fr-FR');
 };
 
-const handleTabClick = (tabName: string) => {
-  activeTab.value = tabName;
-  if (tabName === 'explorer') {
-    router.push('/home');
-  }
-};
-
 const handleLogout = () => {
   // Supprimer toutes les données de localStorage
   localStorage.removeItem('authToken');
@@ -309,6 +300,7 @@ const handleLogout = () => {
 };
 
 onMounted(() => {
+  checkAuth();
   loadData();
 });
 </script>

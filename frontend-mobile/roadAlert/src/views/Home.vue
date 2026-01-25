@@ -16,8 +16,43 @@
             placeholder="Rechercher à Antananarivo..." 
             class="flex-grow bg-transparent border-none focus:ring-0 text-sm font-semibold px-2"
           />
-          <div class="w-8 h-8 rounded-full overflow-hidden bg-blue-100">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+          <div class="relative">
+            <div 
+              class="w-8 h-8 rounded-full overflow-hidden bg-blue-100 cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
+              @click="toggleUserMenu"
+            >
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+            </div>
+            
+            <!-- User Menu Dropdown -->
+            <transition name="fade-slide">
+              <div 
+                v-if="showUserMenu" 
+                class="user-menu-dropdown"
+              >
+                <div class="user-menu-header">
+                  <div class="w-12 h-12 rounded-full overflow-hidden bg-blue-100 mb-2">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+                  </div>
+                  <p class="user-name">{{ userName }}</p>
+                  <p class="user-email">{{ userEmail }}</p>
+                </div>
+                <div class="user-menu-divider"></div>
+                <button class="user-menu-item" @click="handleProfile">
+                  <i class="fas fa-user"></i>
+                  <span>Mon profil</span>
+                </button>
+                <button class="user-menu-item" @click="handleSettings">
+                  <i class="fas fa-cog"></i>
+                  <span>Paramètres</span>
+                </button>
+                <div class="user-menu-divider"></div>
+                <button class="user-menu-item logout" @click="handleLogout">
+                  <i class="fas fa-sign-out-alt"></i>
+                  <span>Se déconnecter</span>
+                </button>
+              </div>
+            </transition>
           </div>
         </div>
         
@@ -76,17 +111,7 @@
       </div>
 
       <!-- NAVIGATION BAR (Bottom Tabs) -->
-      <div class="fixed bottom-0 left-0 right-0 glass-morphism border-t border-slate-200 px-8 py-3 flex justify-between items-center z-[3000]">
-        <div 
-          v-for="tab in tabs" 
-          :key="tab.name"
-          @click="handleTabClick(tab.name)"
-          :class="['flex flex-col items-center', activeTab === tab.name ? 'text-blue-600' : 'text-slate-400']"
-        >
-          <i :class="`fas ${tab.icon} text-lg`"></i>
-          <span class="text-[10px] font-bold mt-1">{{ tab.label }}</span>
-        </div>
-      </div>
+      <BottomNavBar :activeTab="activeTab" />
 
       <!-- Loading Spinner -->
       <div v-if="isLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[5000]">
@@ -109,6 +134,7 @@ import 'leaflet/dist/leaflet.css';
 import './Home.css';
 import RoadAlertDetail from '../components/RoadAlertDetail.vue';
 import CreateRoadAlert from '../components/CreateRoadAlert.vue';
+import BottomNavBar from '../components/BottomNavBar.vue';
 
 const router = useRouter();
 const mapContainer = ref<HTMLElement | null>(null);
@@ -122,6 +148,9 @@ const roadAlerts = ref<RoadAlert[]>([]);
 const isCreateMode = ref(false); // Mode sélection d'emplacement actif
 const showCreateModal = ref(false); // Afficher la modal de création
 const tempMarkerLocation = ref<{ lat: number; lng: number } | null>(null);
+const showUserMenu = ref(false);
+const userName = ref('');
+const userEmail = ref('');
 
 let map: L.Map | null = null;
 let markers: L.Marker[] = [];
@@ -132,13 +161,6 @@ const filters = [
   { value: 'nouveau', label: 'Nouveau', icon: 'fa-exclamation-circle' },
   { value: 'en_cours', label: 'En cours', icon: 'fa-hammer' },
   { value: 'termine', label: 'Terminés', icon: 'fa-check-circle' },
-];
-
-const tabs = [
-  { name: 'explorer', label: 'Explorer', icon: 'fa-map-marked-alt' },
-  { name: 'stats', label: 'Stats', icon: 'fa-chart-pie' },
-  { name: 'alerts', label: 'Alertes', icon: 'fa-bell' },
-  { name: 'profile', label: 'Profil', icon: 'fa-user' },
 ];
 
 const filteredAlerts = computed(() => {
@@ -163,6 +185,7 @@ const initMap = () => {
     } else {
       // Mode normal : fermer le bottom sheet
       if (isSheetActive.value) closeSheet();
+      if (showUserMenu.value) showUserMenu.value = false;
     }
   });
 };
@@ -240,7 +263,55 @@ const toggleMenu = () => {
   console.log('Menu toggled');
 };
 
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value;
+};
+
+const handleProfile = () => {
+  showUserMenu.value = false;
+  router.push('/profile');
+};
+
+const handleSettings = () => {
+  showUserMenu.value = false;
+  console.log('Naviguer vers les paramètres');
+  // TODO: Implémenter la navigation vers les paramètres
+};
+
+const handleLogout = () => {
+  showUserMenu.value = false;
+  
+  // Supprimer les données d'authentification
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  
+  // Rediriger vers la page de connexion
+  router.push('/login');
+};
+
+const loadUserInfo = () => {
+  const userString = localStorage.getItem('user');
+  if (userString) {
+    try {
+      const user = JSON.parse(userString);
+      userName.value = user.displayName || user.email?.split('@')[0] || 'Utilisateur';
+      userEmail.value = user.email || '';
+    } catch (error) {
+      console.error('Erreur lors du chargement des infos utilisateur:', error);
+    }
+  }
+};
+
 const handleAddAlert = () => {
+  // Vérifier si l'utilisateur est connecté
+  const authToken = localStorage.getItem('authToken');
+  if (!authToken) {
+    // Rediriger vers la page de connexion
+    router.push('/login');
+    return;
+  }
+  
   isCreateMode.value = true;
   closeSheet(); // Fermer le détail si ouvert
   // Ne pas ouvrir la modal tout de suite, attendre que l'utilisateur clique sur la carte
@@ -289,15 +360,8 @@ const handleRefresh = async () => {
   await loadRoadAlerts();
 };
 
-const handleTabClick = (tabName: string) => {
-  activeTab.value = tabName;
-  if (tabName === 'stats') {
-    router.push('/dashboard');
-  }
-  // TODO: Navigate to other pages when ready
-};
-
 onMounted(async () => {
+  loadUserInfo();
   initMap();
   await loadRoadAlerts();
 });
