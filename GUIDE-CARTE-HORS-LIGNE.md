@@ -6,6 +6,73 @@
 
 ---
 
+## 🎯 Pour une nouvelle personne : Que télécharger IMPÉRATIVEMENT ?
+
+Si tu donnes ce projet à quelqu'un d'autre, voici **exactement** ce qu'il/elle doit installer :
+
+### 1️⃣ Docker Desktop (OBLIGATOIRE)
+- **Télécharger** : https://www.docker.com/products/docker-desktop/
+- **Version** : Windows (si sur Windows), Mac (si sur Mac)
+- **Taille** : ~500 MB
+- **Pourquoi** : Fait tourner les serveurs PostgreSQL et OSM Tile Server
+- **Installation** : Suivre l'assistant d'installation, redémarrer si demandé
+
+### 2️⃣ Node.js (OBLIGATOIRE)
+- **Télécharger** : https://nodejs.org/
+- **Version recommandée** : LTS (Long Term Support) - actuellement v20.x ou v18.x
+- **Taille** : ~50 MB
+- **Pourquoi** : Nécessaire pour le frontend (Vite/React)
+- **Vérification après installation** : `node --version` et `npm --version` dans PowerShell
+
+### 3️⃣ Fichier region.osm.pbf (OBLIGATOIRE)
+- **C'est quoi** : Données cartographiques OpenStreetMap de Madagascar
+- **Taille** : ~50-200 MB selon la région
+- **Où l'obtenir** : 
+  - **Option A** : Télécharger depuis Geofabrik : https://download.geofabrik.de/africa/madagascar.html
+  - **Option B** : Tu lui fournis directement ton fichier `region.osm.pbf`
+- **Où le mettre** : `backend/module-cartes/region.osm.pbf` (créer le dossier `module-cartes` si nécessaire)
+- **Pourquoi** : Contient TOUTES les données de routes, bâtiments, points d'intérêt de Madagascar
+
+### 4️⃣ Le code du projet (OBLIGATOIRE)
+- **Comment** : 
+  - Clone du repository Git : `git clone <url-du-repo>`
+  - Ou copie complète du dossier `Projet_Cloud`
+- **Dossiers importants à vérifier** :
+  - `backend/module-cartes/leaflet/` (CSS, JS, images Leaflet)
+  - `docker-compose.yml` (à la racine)
+  - `frontend-web/roadAlert/` (code React)
+
+### 5️⃣ Git (OPTIONNEL mais recommandé)
+- **Télécharger** : https://git-scm.com/download/win
+- **Pourquoi** : Pour cloner le repo et gérer les versions
+- **Alternative** : Télécharger le projet en ZIP
+
+---
+
+## ⚠️ CE QUI NE DOIT PAS être téléchargé manuellement
+
+**Pas besoin de télécharger séparément** :
+- ❌ Leaflet (déjà dans `backend/module-cartes/leaflet/`)
+- ❌ PostgreSQL (fourni par Docker)
+- ❌ OSM Tile Server (fourni par Docker)
+- ❌ Dépendances npm (installées avec `npm install`)
+- ❌ Images Docker (téléchargées automatiquement par `docker-compose`)
+
+---
+
+## 📦 Récapitulatif - Checklist installation nouvelle personne
+
+**Avant de commencer** :
+- [ ] Docker Desktop installé et démarré
+- [ ] Node.js installé (vérifier : `node --version`)
+- [ ] Fichier `region.osm.pbf` placé dans `backend/module-cartes/`
+- [ ] Code du projet complet (clone Git ou copie)
+- [ ] Navigateur web moderne (Chrome/Firefox/Edge)
+
+**Total espace disque requis** : ~2-3 GB (Docker images + données OSM + node_modules)
+
+---
+
 ## 📋 Table des matières
 
 1. [Prérequis](#prérequis)
