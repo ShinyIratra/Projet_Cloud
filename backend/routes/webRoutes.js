@@ -13,6 +13,7 @@ router.get('/users/blocked', webAuthController.getBlockedUsers);
 
 // Signalements
 router.get('/signalements', webSignalementController.getAll);
+router.post('/signalements', webSignalementController.create);
 router.get('/signalements/stats', webSignalementController.getStats);
 router.put('/signalements', webSignalementController.update);
 router.patch('/signalements/status', webSignalementController.updateStatus);

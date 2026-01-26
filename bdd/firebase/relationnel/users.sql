@@ -2,6 +2,9 @@ DROP DATABASE IF EXISTS roadalerts;
 CREATE DATABASE roadalerts;
 \c roadalerts;
 
+-- Activer l'extension PostGIS pour les types géographiques
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 CREATE TABLE type_user(
    Id_type_user SERIAL,
    label VARCHAR(200)  NOT NULL,
@@ -70,17 +73,33 @@ CREATE TABLE signalements(
    Id_signalements SERIAL,
    surface NUMERIC(15,2)   NOT NULL,
    budget NUMERIC(15,2)   NOT NULL,
-   lattitude NUMERIC(10,8) NOT NULL,
-   longitude NUMERIC(11,8) NOT NULL,
+   position GEOGRAPHY(POINT, 4326) NOT NULL,
    date_signalement TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    Id_statut_signalement INTEGER,
    Id_entreprise INTEGER,
    Id_users INTEGER NOT NULL,
+   id_firebase VARCHAR(255) UNIQUE,
    PRIMARY KEY(Id_signalements),
    FOREIGN KEY(Id_statut_signalement) REFERENCES statut_signalement(Id_statut_signalement),
    FOREIGN KEY(Id_entreprise) REFERENCES entreprise(Id_entreprise),
    FOREIGN KEY(Id_users) REFERENCES users(Id_users)
 );
+
+-- Fonctions helper pour extraire lat/lng depuis position
+CREATE OR REPLACE FUNCTION get_latitude(pos GEOGRAPHY)
+RETURNS DOUBLE PRECISION AS $$
+BEGIN
+  RETURN ST_Y(pos::geometry);
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION get_longitude(pos GEOGRAPHY)
+RETURNS DOUBLE PRECISION AS $$
+BEGIN
+  RETURN ST_X(pos::geometry);
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Donnees initiales
 
@@ -104,8 +123,8 @@ INSERT INTO configurations (code, description, valeur) VALUES
 INSERT INTO entreprise (nom) VALUES
 ('COLAS Madagascar'),
 ('SOGEA SATOM'),
-('ENTREPRISE GENERALE'),
-('TRAVAUX PUBLICS SA');
+('Entreprise XYZ'),
+('ITU Madagascar');
 
 -- Manager par defaut (password: manager123)
 INSERT INTO users (username, email, password, Id_type_user) VALUES

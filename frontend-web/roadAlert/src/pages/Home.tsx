@@ -11,6 +11,7 @@ const Home: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [selected, setSelected] = useState<Signalement | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const history = useHistory();
@@ -66,12 +67,15 @@ const Home: React.FC = () => {
         iconAnchor: [10, 10]
       });
 
-      const marker = L.marker([s.lattitude, s.longitude], { icon: customIcon })
+      const lat = Number(s.lattitude) || 0;
+      const lng = Number(s.longitude) || 0;
+
+      const marker = L.marker([lat, lng], { icon: customIcon })
         .addTo(mapRef.current!);
 
       marker.on('mouseover', () => setSelected(s));
       marker.on('click', () => {
-        mapRef.current?.flyTo([s.lattitude, s.longitude], 15);
+        mapRef.current?.flyTo([lat, lng], 15);
         setSelected(s);
       });
 
@@ -83,17 +87,24 @@ const Home: React.FC = () => {
 
   const handleSync = async () => {
     try {
-      const count = await api.syncFromFirebase();
-      alert(`${count} signalements synchronisés`);
+      const result = await api.syncFromFirebase();
+      const message = ` Synchronisation terminée\n${result.synced} nouveau(x) signalement(s)\n${result.updated} mis à jour`;
+      alert(message);
       loadData();
     } catch (err) {
-      alert('Erreur de synchronisation');
+      alert('❌ Erreur de synchronisation');
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
+    setShowUserMenu(false);
+    history.push('/login');
+  };
+
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
   };
 
   const isManager = user?.type_user?.toLowerCase() === 'manager';
@@ -111,9 +122,9 @@ const Home: React.FC = () => {
 
   const getStatusInfo = (status: string) => {
     const s = status?.toLowerCase() || '';
-    if (s.includes('termin')) return { class: 'badge-done', label: 'Terminé' };
-    if (s.includes('cours')) return { class: 'badge-progress', label: 'En cours' };
-    return { class: 'badge-new', label: 'Nouveau' };
+    if (s === 'termine' || s.includes('termin')) return { class: 'badge-done', label: status || 'Termine' };
+    if (s.includes('cours')) return { class: 'badge-progress', label: status || 'En cours' };
+    return { class: 'badge-new', label: status || 'Nouveau' };
   };
 
   return (
@@ -129,11 +140,6 @@ const Home: React.FC = () => {
             <span className="brand-tag">Tana</span>
           </div>
 
-          <div className="navbar-search">
-            <i className="fas fa-search"></i>
-            <input type="text" placeholder="Rechercher une zone..." />
-          </div>
-
           <div className="navbar-right">
             {isManager && (
               <button className="btn-sync" onClick={handleSync}>
@@ -144,21 +150,112 @@ const Home: React.FC = () => {
             <i className="far fa-compass nav-icon"></i>
             <div className="user-section">
               {user ? (
-                <>
+                <div style={{ position: 'relative' }}>
                   <div className="user-info-text">
                     <span className="user-role">{user.type_user}</span>
                   </div>
-                  <div className="avatar" onClick={handleLogout} title="Déconnexion">
-                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="profile" />
+                  <div className="avatar" onClick={toggleUserMenu} title="Menu utilisateur" style={{ cursor: 'pointer', background: user.type_user?.toLowerCase() === 'manager' ? '#3b82f6' : '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
                   </div>
-                </>
+                  {showUserMenu && (
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        marginTop: '8px',
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 40px -12px rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        padding: '8px',
+                        minWidth: '200px',
+                        zIndex: 1000
+                      }}
+                    >
+                      <div style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Connecté en tant que</p>
+                        <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '4px 0 0 0', color: '#0f172a' }}>{user.username}</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0' }}>{user.email}</p>
+                      </div>
+                      {isManager && (
+                        <>
+                          <button 
+                            onClick={() => { setShowUserMenu(false); history.push('/management'); }}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              border: 'none',
+                              background: 'transparent',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: '#0f172a',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <i className="fas fa-cog"></i> Gestion
+                          </button>
+                          <button 
+                            onClick={() => { setShowUserMenu(false); history.push('/blocked-users'); }}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              border: 'none',
+                              background: 'transparent',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: '#0f172a',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <i className="fas fa-user-shield"></i> Utilisateurs bloqués
+                          </button>
+                        </>
+                      )}
+                      <button 
+                        onClick={handleLogout}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#dc2626',
+                          borderRadius: '8px',
+                          marginTop: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <i className="fas fa-sign-out-alt"></i> Déconnexion
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   <div className="user-info-text">
                     <span className="user-role">Visiteur</span>
                   </div>
-                  <div className="avatar" onClick={() => history.push('/login')} title="Se connecter">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Guest" alt="profile" />
+                  <div className="avatar" onClick={() => history.push('/login')} title="Se connecter" style={{ background: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <i className="fas fa-user" style={{ color: 'white', fontSize: '20px' }}></i>
                   </div>
                 </>
               )}
@@ -243,7 +340,16 @@ const Home: React.FC = () => {
           <button className="footer-btn disabled">
             <i className="fas fa-plus-circle"></i>
           </button>
-          <button className="footer-btn" onClick={() => history.push('/management')}>
+          <button 
+            className="footer-btn" 
+            onClick={() => {
+              if (!isManager) {
+                alert('⚠️ Accès refusé : Cette page est réservée aux managers');
+              } else {
+                history.push('/management');
+              }
+            }}
+          >
             <i className="fas fa-cog"></i>
           </button>
         </div>

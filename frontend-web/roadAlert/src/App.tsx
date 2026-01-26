@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Management from './pages/Management';
+import BlockedUsers from './pages/BlockedUsers';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -53,6 +54,9 @@ const App: React.FC = () => (
         </Route>
         <Route exact path="/management">
           <Management />
+        </Route>
+        <Route exact path="/blocked-users">
+          <BlockedUsers />
         </Route>
         <Route exact path="/">
           <Redirect to="/home" />

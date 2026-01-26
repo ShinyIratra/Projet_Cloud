@@ -87,10 +87,20 @@ export const api = {
     });
   },
 
-  async syncFromFirebase(): Promise<number> {
+  async createSignalement(signalement: Omit<Signalement, 'id' | 'date_signalement'>): Promise<void> {
+    const res = await fetch(`${API_URL}/api/web/signalements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(signalement),
+    });
+    const data = await res.json();
+    if (data.status === 'error') throw new Error(data.message);
+  },
+
+  async syncFromFirebase(): Promise<{synced: number, updated: number}> {
     const res = await fetch(`${API_URL}/api/web/sync/from-firebase`, { method: 'POST' });
     const data = await res.json();
-    return data.data?.synced || 0;
+    return data.data || { synced: 0, updated: 0 };
   },
 
   async syncToFirebase(): Promise<number> {
