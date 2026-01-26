@@ -1,5 +1,8 @@
 import { query, isConnected } from '../config/postgres.js';
 import ApiModel from '../models/ApiModel.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'votre-secret-jwt-super-securise-2024';
 
 const webAuthController = {
 
@@ -51,11 +54,23 @@ const webAuthController = {
                 return res.status(401).json(new ApiModel('error', null, 'Mot de passe incorrect'));
             }
 
+            // Génération du JWT token
+            const token = jwt.sign(
+                {
+                    id: user.id_users,
+                    email: user.email,
+                    type_user: user.type_user_label
+                },
+                JWT_SECRET,
+                { expiresIn: '1h' }
+            );
+
             const response = new ApiModel('success', {
                 id: user.id_users,
                 email: user.email,
                 username: user.username,
-                type_user: user.type_user_label
+                type_user: user.type_user_label,
+                token: token
             }, 'Connexion reussie');
             res.json(response);
 
