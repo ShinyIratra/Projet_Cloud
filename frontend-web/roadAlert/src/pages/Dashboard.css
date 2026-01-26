@@ -1,13 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 .dashboard-page,
-.dashboard-page ion-content {
+.dashboard-page ion-content,
+.dashboard-page .ion-page {
   --background: #f8fafc;
+  background: #f8fafc !important;
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .dashboard-page ion-content {
   color: #1e293b;
+}
+
+.dashboard-content {
+  background: #f8fafc;
 }
 
 /* LOADING */

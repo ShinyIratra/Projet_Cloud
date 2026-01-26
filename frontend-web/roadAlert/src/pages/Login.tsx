@@ -108,8 +108,8 @@ const Login: React.FC = () => {
       const user = await api.login(email, password);
       // Stocker l'utilisateur dans localStorage
       localStorage.setItem('user', JSON.stringify(user));
-      // Rediriger vers la page d'accueil
-      history.push('/home');
+      // Forcer le rafraîchissement en rechargeant la page après redirection
+      window.location.href = '/home';
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Erreur de connexion';
       setError(errorMsg);

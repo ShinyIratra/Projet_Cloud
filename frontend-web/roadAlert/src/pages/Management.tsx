@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
+import { useHistory } from 'react-router-dom';
 import { api, Signalement } from '../utils/api';
 import './Management.css';
 
@@ -14,14 +15,50 @@ const Management: React.FC = () => {
   const [editForm, setEditForm] = useState<Partial<Signalement>>({});
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newSignalement, setNewSignalement] = useState<Partial<Signalement>>({
+    surface: undefined,
+    budget: undefined,
+    lattitude: undefined,
+    longitude: undefined,
+    entreprise: '',
+    status: 'nouveau'
+  });
+  const [entreprises, setEntreprises] = useState<{id: number, nom: string}[]>([]);
+  const history = useHistory();
+
+  // Vérifier les permissions au chargement
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
+      history.push('/login');
+      return;
+    }
+    const user = JSON.parse(storedUser);
+    if (user.type_user?.toLowerCase() !== 'manager') {
+      alert(' Accès refusé : Cette page est réservée aux managers');
+      history.push('/home');
+      return;
+    }
+  }, [history]);
 
   useEffect(() => {
     loadAlerts();
+    loadEntreprises();
   }, []);
 
   useEffect(() => {
     filterAlerts();
   }, [alerts, filter]);
+
+  const loadEntreprises = async () => {
+    try {
+      const data = await api.getEntreprises();
+      setEntreprises(data);
+    } catch (error) {
+      console.error('Erreur lors du chargement des entreprises:', error);
+    }
+  };
 
   const loadAlerts = async () => {
     try {
@@ -83,17 +120,55 @@ const Management: React.FC = () => {
     }
   };
 
-  const getStatusClass = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'nouveau':
-        return 'status-new';
-      case 'en cours':
-        return 'status-progress';
-      case 'terminé':
-        return 'status-done';
-      default:
-        return 'status-new';
+  const createSignalement = async () => {
+    try {
+      if (!newSignalement.lattitude || !newSignalement.longitude || !newSignalement.surface) {
+        setToastMessage('Veuillez remplir tous les champs obligatoires');
+        setShowToast(true);
+        return;
+      }
+
+      // Récupérer l'utilisateur connecté
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) {
+        setToastMessage('Erreur: Utilisateur non connecté');
+        setShowToast(true);
+        history.push('/login');
+        return;
+      }
+      const user = JSON.parse(storedUser);
+      
+      // Ajouter l'userId au signalement
+      const signalementData = {
+        ...newSignalement,
+        userId: user.id
+      };
+
+      await api.createSignalement(signalementData as Omit<Signalement, 'id' | 'date_signalement'>);
+      setToastMessage('Signalement créé avec succès');
+      setShowToast(true);
+      setShowAddModal(false);
+      setNewSignalement({
+        surface: undefined,
+        budget: undefined,
+        lattitude: undefined,
+        longitude: undefined,
+        entreprise: '',
+        status: 'nouveau'
+      });
+      await loadAlerts();
+    } catch (error) {
+      setToastMessage('Erreur lors de la création');
+      setShowToast(true);
     }
+  };
+
+  const getStatusClass = (status: string) => {
+    if (!status) return 'status-new';
+    const s = status.toLowerCase();
+    if (s === 'termine' || s.includes('termin')) return 'status-done';
+    if (s === 'en cours' || s.includes('cours')) return 'status-progress';
+    return 'status-new';
   };
 
   const formatDate = (dateStr: string) => {
@@ -120,7 +195,7 @@ const Management: React.FC = () => {
         <nav className="glass-nav">
           <div className="navbar-left">
             <div className="navbar-brand">
-              Road<span className="brand-accent">Watch</span>
+              Road<span className="brand-accent">Alert</span>
             </div>
             <span className="manager-badge">Console Manager</span>
           </div>
@@ -129,8 +204,8 @@ const Management: React.FC = () => {
               <p className="profile-label">Connecté en tant que</p>
               <p className="profile-name">Manager</p>
             </div>
-            <div className="profile-avatar">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Manager" alt="profile" />
+            <div className="profile-avatar" style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
             </div>
           </div>
         </nav>
@@ -139,10 +214,15 @@ const Management: React.FC = () => {
         <main className="management-content">
           {/* HEADER */}
           <div className="management-header">
-            <h1 className="page-title">Gestion des interventions</h1>
-            <p className="page-subtitle">
-              Modifiez le statut des signalements et assignez les entreprises de travaux.
-            </p>
+            <div>
+              <h1 className="page-title">Gestion des interventions</h1>
+              <p className="page-subtitle">
+                Modifiez le statut des signalements et assignez les entreprises de travaux.
+              </p>
+            </div>
+            <button className="btn-add-alert" onClick={() => setShowAddModal(true)}>
+              <i className="fas fa-plus"></i> Ajouter un signalement
+            </button>
           </div>
 
           {/* FILTERS */}
@@ -186,26 +266,32 @@ const Management: React.FC = () => {
                           <label>Surface (m²)</label>
                           <input
                             type="number"
-                            value={editForm.surface || 0}
-                            onChange={(e) => setEditForm({ ...editForm, surface: Number(e.target.value) })}
+                            placeholder="Surface en m²"
+                            value={editForm.surface || ''}
+                            onChange={(e) => setEditForm({ ...editForm, surface: e.target.value ? Number(e.target.value) : undefined })}
                           />
                         </div>
                         <div className="form-group">
                           <label>Budget (Ar)</label>
                           <input
                             type="number"
-                            value={editForm.budget || 0}
-                            onChange={(e) => setEditForm({ ...editForm, budget: Number(e.target.value) })}
+                            placeholder="Budget en Ariary"
+                            value={editForm.budget || ''}
+                            onChange={(e) => setEditForm({ ...editForm, budget: e.target.value ? Number(e.target.value) : undefined })}
                           />
                         </div>
                       </div>
                       <div className="form-group">
                         <label>Entreprise concernée</label>
-                        <input
-                          type="text"
+                        <select
                           value={editForm.entreprise || ''}
                           onChange={(e) => setEditForm({ ...editForm, entreprise: e.target.value })}
-                        />
+                        >
+                          <option value="">Sélectionner une entreprise</option>
+                          {entreprises.map((ent) => (
+                            <option key={ent.id} value={ent.nom}>{ent.nom}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="form-row">
                         <div className="form-group">
@@ -213,8 +299,9 @@ const Management: React.FC = () => {
                           <input
                             type="number"
                             step="0.0001"
-                            value={editForm.lattitude || 0}
-                            onChange={(e) => setEditForm({ ...editForm, lattitude: Number(e.target.value) })}
+                            placeholder="Ex: -18.9138"
+                            value={editForm.lattitude || ''}
+                            onChange={(e) => setEditForm({ ...editForm, lattitude: e.target.value ? Number(e.target.value) : undefined })}
                           />
                         </div>
                         <div className="form-group">
@@ -222,8 +309,9 @@ const Management: React.FC = () => {
                           <input
                             type="number"
                             step="0.0001"
-                            value={editForm.longitude || 0}
-                            onChange={(e) => setEditForm({ ...editForm, longitude: Number(e.target.value) })}
+                            placeholder="Ex: 47.5361"
+                            value={editForm.longitude || ''}
+                            onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value ? Number(e.target.value) : undefined })}
                           />
                         </div>
                       </div>
@@ -296,23 +384,101 @@ const Management: React.FC = () => {
           </div>
         </main>
 
+        {/* MODAL D'AJOUT */}
+        {showAddModal && (
+          <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Nouveau signalement</h3>
+                <button className="close-btn" onClick={() => setShowAddModal(false)}>
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Surface (m²) *</label>
+                    <input
+                      type="number"
+                      placeholder="Surface en m²"
+                      value={newSignalement.surface || ''}
+                      onChange={(e) => setNewSignalement({ ...newSignalement, surface: e.target.value ? Number(e.target.value) : undefined })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Budget (Ar) *</label>
+                    <input
+                      type="number"
+                      placeholder="Budget en Ariary"
+                      value={newSignalement.budget || ''}
+                      onChange={(e) => setNewSignalement({ ...newSignalement, budget: e.target.value ? Number(e.target.value) : undefined })}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Entreprise concernée</label>
+                  <select
+                    value={newSignalement.entreprise || ''}
+                    onChange={(e) => setNewSignalement({ ...newSignalement, entreprise: e.target.value })}
+                  >
+                    <option value="">Sélectionner une entreprise</option>
+                    {entreprises.map((ent) => (
+                      <option key={ent.id} value={ent.nom}>{ent.nom}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Latitude *</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      placeholder="Ex: -18.9138"
+                      value={newSignalement.lattitude || ''}
+                      onChange={(e) => setNewSignalement({ ...newSignalement, lattitude: e.target.value ? Number(e.target.value) : undefined })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Longitude *</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      placeholder="Ex: 47.5361"
+                      value={newSignalement.longitude || ''}
+                      onChange={(e) => setNewSignalement({ ...newSignalement, longitude: e.target.value ? Number(e.target.value) : undefined })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn-cancel" onClick={() => setShowAddModal(false)}>
+                  Annuler
+                </button>
+                <button className="btn-save" onClick={createSignalement}>
+                  <i className="fas fa-save"></i> Créer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* FOOTER */}
         <footer className="management-footer">
           <div className="footer-nav">
-            <button className="footer-btn">
+            <button className="footer-btn" onClick={() => history.push('/home')}>
               <i className="fas fa-home"></i>
             </button>
-            <button className="footer-btn">
-              <i className="fas fa-map-marked-alt"></i>
+            <button className="footer-btn" onClick={() => history.push('/dashboard')}>
+              <i className="fas fa-chart-bar"></i>
             </button>
-            <button className="footer-btn disabled">
+            <button className="footer-btn" onClick={() => setShowAddModal(true)}>
               <i className="fas fa-plus-circle"></i>
             </button>
             <button className="footer-btn active">
               <i className="fas fa-tasks"></i>
             </button>
-            <button className="footer-btn">
-              <i className="fas fa-cog"></i>
+            <button className="footer-btn" onClick={() => history.push('/blocked-users')}>
+              <i className="fas fa-user-shield"></i>
             </button>
           </div>
         </footer>

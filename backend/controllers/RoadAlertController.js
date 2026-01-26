@@ -32,7 +32,8 @@ const RoadAlertController =
                 "lattitude": roadAlert.getLattitude(),
                 "longitude": roadAlert.getLongitude(),
                 "UID": roadAlert.getUID(),
-                "date_alert": roadAlert.getDateAlert()
+                "date_alert": roadAlert.getDateAlert(),
+                "updated_at": new Date().toISOString()
             });
         
             const response = new ApiModel("success", { id: roadAlert.getId() }, "Signalement créée avec succès");
@@ -89,7 +90,8 @@ const RoadAlertController =
                 "lattitude": lattitude,
                 "longitude": longitude,
                 "UID": UID,
-                "date_alert": date_alert
+                "date_alert": date_alert,
+                "updated_at": new Date().toISOString()
             });
         
             const response = new ApiModel("success", null, "Signalement mise à jour avec succès");
@@ -109,7 +111,8 @@ const RoadAlertController =
             const roadAlertRef = db.collection("road_alerts").doc(id);
             
             await roadAlertRef.update({ 
-                "status": status
+                "status": status,
+                "updated_at": new Date().toISOString()
             });
 
             const response = new ApiModel("success", null, "Statut du signalement mis à jour avec succès");
