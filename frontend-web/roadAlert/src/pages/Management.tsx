@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { IonContent, IonPage, IonToast } from '@ionic/react';
-import { fetchRoadAlerts, RoadAlert, updateRoadAlert, updateAlertStatus } from '../utils/roadAlertApi';
+import { api, Signalement } from '../utils/api';
 import './Management.css';
 
 type FilterType = 'all' | 'new' | 'progress';
 
 const Management: React.FC = () => {
-  const [alerts, setAlerts] = useState<RoadAlert[]>([]);
-  const [filteredAlerts, setFilteredAlerts] = useState<RoadAlert[]>([]);
+  const [alerts, setAlerts] = useState<Signalement[]>([]);
+  const [filteredAlerts, setFilteredAlerts] = useState<Signalement[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
-  const [editingAlert, setEditingAlert] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<RoadAlert>>({});
+  const [editingAlert, setEditingAlert] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Signalement>>({});
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -26,7 +26,7 @@ const Management: React.FC = () => {
   const loadAlerts = async () => {
     try {
       setLoading(true);
-      const data = await fetchRoadAlerts();
+      const data = await api.getSignalements();
       setAlerts(data);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
@@ -38,16 +38,16 @@ const Management: React.FC = () => {
   const filterAlerts = () => {
     let filtered = alerts;
     if (filter === 'new') {
-      filtered = alerts.filter(a => a.status.toLowerCase() === 'nouveau');
+      filtered = alerts.filter(a => a.status?.toLowerCase().includes('nouveau'));
     } else if (filter === 'progress') {
-      filtered = alerts.filter(a => a.status.toLowerCase() === 'en cours');
+      filtered = alerts.filter(a => a.status?.toLowerCase().includes('cours'));
     }
     setFilteredAlerts(filtered);
   };
 
-  const handleStatusChange = async (alertId: string, newStatus: string) => {
+  const handleStatusChange = async (alertId: number, newStatus: string) => {
     try {
-      await updateAlertStatus(alertId, newStatus);
+      await api.updateStatus(alertId, newStatus === 'En cours' ? 'en_cours' : 'termine');
       setToastMessage('Statut mis à jour avec succès');
       setShowToast(true);
       await loadAlerts();
@@ -57,8 +57,8 @@ const Management: React.FC = () => {
     }
   };
 
-  const startEditing = (alert: RoadAlert) => {
-    setEditingAlert(alert.id || '');
+  const startEditing = (alert: Signalement) => {
+    setEditingAlert(alert.id);
     setEditForm(alert);
   };
 
@@ -71,7 +71,7 @@ const Management: React.FC = () => {
     if (!editingAlert || !editForm.id) return;
     
     try {
-      await updateRoadAlert(editForm as RoadAlert);
+      await api.updateSignalement(editForm.id, editForm);
       setToastMessage('Signalement mis à jour avec succès');
       setShowToast(true);
       setEditingAlert(null);
@@ -203,8 +203,8 @@ const Management: React.FC = () => {
                         <label>Entreprise concernée</label>
                         <input
                           type="text"
-                          value={editForm.concerned_entreprise || ''}
-                          onChange={(e) => setEditForm({ ...editForm, concerned_entreprise: e.target.value })}
+                          value={editForm.entreprise || ''}
+                          onChange={(e) => setEditForm({ ...editForm, entreprise: e.target.value })}
                         />
                       </div>
                       <div className="form-row">
@@ -213,8 +213,8 @@ const Management: React.FC = () => {
                           <input
                             type="number"
                             step="0.0001"
-                            value={editForm.latitude || 0}
-                            onChange={(e) => setEditForm({ ...editForm, latitude: Number(e.target.value) })}
+                            value={editForm.lattitude || 0}
+                            onChange={(e) => setEditForm({ ...editForm, lattitude: Number(e.target.value) })}
                           />
                         </div>
                         <div className="form-group">
@@ -247,16 +247,16 @@ const Management: React.FC = () => {
                         </div>
                       </div>
                       <div className="card-info">
-                        <span className={`status-pill ${getStatusClass(alert.status)}`}>
+                        <span className={`status-pill ${getStatusClass(alert.status || '')}`}>
                           {alert.status}
                         </span>
-                        <h3 className="alert-title">{alert.concerned_entreprise}</h3>
+                        <h3 className="alert-title">{alert.entreprise || 'Non assigné'}</h3>
                         <p className="alert-location">
-                          <i className="fas fa-map-marker-alt"></i> Coordonnées : {alert.latitude}, {alert.longitude}
+                          <i className="fas fa-map-marker-alt"></i> Coordonnées : {alert.lattitude}, {alert.longitude}
                         </p>
                         <div className="alert-meta">
                           <div className="meta-item">
-                            Signalé le : <span>{formatDate(alert.date_alert)}</span>
+                            Signalé le : <span>{formatDate(alert.date_signalement)}</span>
                           </div>
                           <div className="meta-item border">
                             Surface : <span>{alert.surface.toLocaleString('fr-FR')} m²</span>
@@ -271,14 +271,14 @@ const Management: React.FC = () => {
                         <div className="status-buttons">
                           <button
                             className="status-btn progress"
-                            onClick={() => handleStatusChange(alert.id!, 'En cours')}
+                            onClick={() => handleStatusChange(alert.id, 'En cours')}
                           >
                             <i className="fas fa-hammer"></i>
                             <span>Lancer</span>
                           </button>
                           <button
                             className="status-btn done"
-                            onClick={() => handleStatusChange(alert.id!, 'Terminé')}
+                            onClick={() => handleStatusChange(alert.id, 'Terminé')}
                           >
                             <i className="fas fa-check-circle"></i>
                             <span>Terminer</span>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { IonContent, IonPage } from '@ionic/react';
-import { fetchRoadAlerts, RoadAlert } from '../utils/roadAlertApi';
+import { api, Signalement } from '../utils/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,7 +40,7 @@ interface CompanyStats {
 }
 
 const Dashboard: React.FC = () => {
-  const [alerts, setAlerts] = useState<RoadAlert[]>([]);
+  const [alerts, setAlerts] = useState<Signalement[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalPoints: 0,
     totalSurface: 0,
@@ -58,7 +58,7 @@ const Dashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await fetchRoadAlerts();
+      const data = await api.getSignalements();
       setAlerts(data);
       calculateStats(data);
     } catch (error) {
@@ -68,12 +68,12 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const calculateStats = (data: RoadAlert[]) => {
+  const calculateStats = (data: Signalement[]) => {
     const totalPoints = data.length;
     const totalSurface = data.reduce((sum, alert) => sum + alert.surface, 0);
     const totalBudget = data.reduce((sum, alert) => sum + alert.budget, 0);
     const completedCount = data.filter(alert => 
-      alert.status.toLowerCase() === 'terminé'
+      alert.status?.toLowerCase().includes('termin')
     ).length;
     const progressPercentage = totalPoints > 0 
       ? Math.round((completedCount / totalPoints) * 100) 
@@ -84,7 +84,7 @@ const Dashboard: React.FC = () => {
     // Calculate company statistics
     const companyMap: { [key: string]: number } = {};
     data.forEach(alert => {
-      const company = alert.concerned_entreprise;
+      const company = alert.entreprise || 'Non assigné';
       companyMap[company] = (companyMap[company] || 0) + 1;
     });
 

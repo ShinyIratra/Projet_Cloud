@@ -1,7 +1,6 @@
-\c postgres;
-DROP DATABASE IF EXISTS roadAlerts;
-CREATE DATABASE roadAlerts;
-\c roadAlerts;
+DROP DATABASE IF EXISTS roadalerts;
+CREATE DATABASE roadalerts;
+\c roadalerts;
 
 CREATE TABLE type_user(
    Id_type_user SERIAL,
@@ -71,7 +70,7 @@ CREATE TABLE signalements(
    Id_signalements SERIAL,
    surface NUMERIC(15,2)   NOT NULL,
    budget NUMERIC(15,2)   NOT NULL,
-   latitude NUMERIC(10,8) NOT NULL,
+   lattitude NUMERIC(10,8) NOT NULL,
    longitude NUMERIC(11,8) NOT NULL,
    date_signalement TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
    Id_statut_signalement INTEGER,
