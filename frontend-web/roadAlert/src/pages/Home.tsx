@@ -3,7 +3,7 @@ import { IonContent, IonPage } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement, Stats, User } from '../utils/api';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import '/leaflet/leaflet.css';
 import './Home.css';
 
 const Home: React.FC = () => {
@@ -55,8 +55,9 @@ const Home: React.FC = () => {
 
     mapRef.current = L.map('map', { zoomControl: false }).setView([-18.8792, 47.5079], 13);
     
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap'
+    L.tileLayer('http://localhost:8080/tile/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapRef.current);
 
     signalements.forEach(s => {

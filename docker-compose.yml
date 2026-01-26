@@ -13,5 +13,20 @@ services:
     volumes:
       - roadalert_data:/var/lib/postgresql/data
 
+  osm-tile-server:
+    image: overv/openstreetmap-tile-server:latest
+    container_name: osm-tile-server
+    ports:
+      - "8080:80"
+    volumes:
+      - osm-data:/data/database/
+      - ./backend/module-cartes/region.osm.pbf:/data/region.osm.pbf:ro
+    environment:
+      - THREADS=2
+      - OSM2PGSQL_EXTRA_ARGS=-C 2048
+    restart: unless-stopped
+    command: run
+
 volumes:
   roadalert_data:
+  osm-data:
