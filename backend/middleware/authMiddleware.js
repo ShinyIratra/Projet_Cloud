@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import ApiModel from '../models/ApiModel.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'votre-secret-jwt-super-securise-2024';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware pour vérifier le token JWT
 export const verifyToken = (req, res, next) => {
