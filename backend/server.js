@@ -1,11 +1,15 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import roadAlertRoutes from './routes/roadAlertRoutes.js';
+import webRoutes from './routes/webRoutes.js';
 
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './config/swagger.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +33,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api', roadAlertRoutes);
+app.use('/api/web', webRoutes);
 
 // Start server
 app.listen(PORT, () => {
