@@ -5,11 +5,17 @@ import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Profile from '../views/Profile.vue'
+import Settings from '../views/Settings.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     redirect: '/home'
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: Settings
   },
   {
     path: '/login',
@@ -48,7 +54,7 @@ router.beforeEach((to, from, next) => {
   const authToken = localStorage.getItem('authToken');
   const isAuthenticated = !!authToken;
   const authRoutes = ['/login', '/register'];
-  const publicRoutes = ['/login', '/register', '/home', '/dashboard', '/profile'];
+  const publicRoutes = ['/login', '/register', '/home', '/dashboard', '/profile', '/settings'];
 
   // Si déjà connecté et essaie d'aller sur login/register, rediriger vers home
   if (authRoutes.includes(to.path) && isAuthenticated) {
