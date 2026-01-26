@@ -45,6 +45,7 @@
 
         <footer class="footer">
           <p>Données et confidentialité</p>
+          <a href="#" @click.prevent="router.push('/settings')" style="display: block; margin-top: 10px; color: var(--ion-color-medium); font-size: 0.8rem; text-decoration: none;">Configuration Serveur</a>
         </footer>
       </div>
     </ion-content>
