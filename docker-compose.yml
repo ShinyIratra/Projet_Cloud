@@ -30,3 +30,5 @@ services:
 volumes:
   roadalert_data:
   osm-data:
+    external: true
+    name: module-cartes_osm-data

@@ -3,7 +3,7 @@ import { IonContent, IonPage } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement, Stats, User } from '../utils/api';
 import L from 'leaflet';
-import '/leaflet/leaflet.css';
+import '../assets/leaflet/leaflet.css';
 import './Home.css';
 
 const Home: React.FC = () => {
