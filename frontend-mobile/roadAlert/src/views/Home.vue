@@ -13,6 +13,18 @@
             placeholder="Rechercher à Antananarivo..." 
             class="flex-grow bg-transparent border-none focus:ring-0 text-sm font-semibold px-2 text-slate-700 placeholder-slate-400"
           />
+          <!-- Bouton Notifications -->
+          <button 
+            v-if="isUserConnected"
+            @click="toggleNotifications"
+            class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-slate-100 transition-all relative mr-2"
+          >
+            <i class="fas fa-bell text-slate-600"></i>
+            <span v-if="unreadNotificationsCount > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+              {{ unreadNotificationsCount }}
+            </span>
+          </button>
+          
           <div class="relative">
             <!-- Avatar par défaut si non connecté -->
             <div 
@@ -122,6 +134,15 @@
         </div>
       </div>
 
+      <!-- PANNEAU DE NOTIFICATIONS -->
+      <NotificationsPanel
+        :isOpen="showNotifications"
+        :userUID="userUID"
+        @close="showNotifications = false"
+        @notificationClick="handleNotificationClick"
+        ref="notificationsPanelRef"
+      />
+
       <!-- NAVIGATION BAR (Bottom Tabs) -->
       <BottomNavBar :activeTab="activeTab" />
 
@@ -141,12 +162,14 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { IonContent, IonPage, IonSpinner, onIonViewDidEnter, onIonViewWillLeave } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { fetchRoadAlerts, type RoadAlert } from '../utils/roadAlertApi';
+import { fetchUnreadNotifications, type Notification } from '../utils/notificationApi';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './Home.css';
 import RoadAlertDetail from '../components/RoadAlertDetail.vue';
 import CreateRoadAlert from '../components/CreateRoadAlert.vue';
 import BottomNavBar from '../components/BottomNavBar.vue';
+import NotificationsPanel from '../components/NotificationsPanel.vue';
 
 const router = useRouter();
 const mapContainer = ref<HTMLElement | null>(null);
@@ -163,6 +186,9 @@ const tempMarkerLocation = ref<{ lat: number; lng: number } | null>(null);
 const showUserMenu = ref(false);
 const userName = ref('');
 const userEmail = ref('');
+const showNotifications = ref(false);
+const unreadNotificationsCount = ref(0);
+const notificationsPanelRef = ref<any>(null);
 
 let map: L.Map | null = null;
 let markers: L.Marker[] = [];
@@ -376,6 +402,58 @@ const loadUserInfo = () => {
   }
 };
 
+// Fonction pour récupérer l'UID de l'utilisateur
+const userUID = computed(() => {
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      return user.UID || user.uid || '';
+    } catch (e) {
+      return '';
+    }
+  }
+  return '';
+});
+
+// Charger le nombre de notifications non lues
+const loadUnreadNotificationsCount = async () => {
+  if (!userUID.value) return;
+  
+  try {
+    const notifications = await fetchUnreadNotifications(userUID.value);
+    unreadNotificationsCount.value = notifications.length;
+  } catch (error) {
+    console.error('Erreur lors du chargement des notifications:', error);
+  }
+};
+
+// Toggle panneau de notifications
+const toggleNotifications = () => {
+  showNotifications.value = !showNotifications.value;
+};
+
+// Gérer le clic sur une notification
+const handleNotificationClick = (notification: Notification) => {
+  // Fermer le panneau de notifications
+  showNotifications.value = false;
+  
+  // Trouver l'alerte correspondante
+  const alert = roadAlerts.value.find(a => a.id === notification.roadAlertId);
+  if (alert) {
+    selectedAlert.value = alert;
+    isSheetActive.value = true;
+    
+    // Centrer la carte sur l'alerte
+    if (map && alert.lattitude && alert.longitude) {
+      map.flyTo([alert.lattitude, alert.longitude], 15);
+    }
+  }
+  
+  // Rafraîchir le nombre de notifications non lues
+  loadUnreadNotificationsCount();
+};
+
 const handleAddAlert = () => {
   // Vérifier si l'utilisateur est connecté
   const authToken = localStorage.getItem('authToken');
@@ -440,6 +518,18 @@ onMounted(async () => {
     initMap();
   }, 100);
   await loadRoadAlerts();
+  
+  // Charger les notifications si l'utilisateur est connecté
+  if (isUserConnected.value) {
+    await loadUnreadNotificationsCount();
+    
+    // Rafraîchir les notifications toutes les 30 secondes
+    setInterval(() => {
+      if (isUserConnected.value) {
+        loadUnreadNotificationsCount();
+      }
+    }, 30000);
+  }
 });
 
 onUnmounted(() => {

@@ -20,10 +20,6 @@
             <i class="fas fa-sign-in-alt"></i>
             <span>Se connecter</span>
           </button>
-          <button @click="router.push('/register')" class="btn-secondary">
-            <i class="fas fa-user-plus"></i>
-            <span>Créer un compte</span>
-          </button>
         </div>
 
         <!-- LOGGED IN STATE -->
