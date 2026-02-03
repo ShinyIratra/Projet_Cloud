@@ -28,6 +28,14 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
+/* Style navbar recherche comme formulaire_mobile.html */
+.glass-nav-search {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 1);
+}
+
 /* Bottom Sheet - Design Mobile */
 #bottom-sheet {
   position: fixed;
@@ -40,8 +48,9 @@
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
   box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.1);
-  max-height: 80vh;
+  max-height: 75vh;
   overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 #bottom-sheet.active {
@@ -77,15 +86,15 @@
 
 /* Boutons d'action rapides */
 .action-button {
-  width: 50px;
-  height: 50px;
-  border-radius: 15px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.2s ease;
   border: none;
 }
 
@@ -93,10 +102,14 @@
   transform: scale(0.95);
 }
 
+.action-button:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
 /* Style des pastilles sur la carte */
 .marker-pin {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   background: #3b82f6;
   border: 3px solid white;
   border-radius: 50% 50% 50% 0;

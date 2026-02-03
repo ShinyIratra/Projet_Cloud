@@ -1,777 +1,239 @@
 <template>
-  <div id="create-alert-modal" :class="{ active: isOpen }">
-    <div class="modal-content-mobile">
-      <!-- HEADER MOBILE -->
-      <div class="mobile-header">
-        <button @click="close" class="back-button">
-          <i class="fas fa-times"></i>
-        </button>
-        <div class="header-center">
-          <h2 class="header-title">Nouveau signalement</h2>
-          <div class="progress-dots">
-            <span :class="['dot', { active: step === 'location' || step === 'form' || step === 'success' }]"></span>
-            <span :class="['dot', { active: step === 'form' || step === 'success' }]"></span>
-            <span :class="['dot', { active: step === 'success' }]"></span>
-          </div>
-        </div>
-        <div class="header-spacer"></div>
-      </div>
-
-      <!-- STEP 1: Sélection de l'emplacement -->
-      <div v-if="step === 'location'" class="step-container">
-        <div class="step-content-scroll">
-          <div class="instruction-card-mobile">
-            <div class="instruction-icon">
-              <i class="fas fa-map-marker-alt"></i>
-            </div>
-            <h3 class="instruction-title">Où se trouve le problème ?</h3>
-            <p class="instruction-text">Touchez la carte pour placer un marqueur rouge à l'emplacement exact</p>
-          </div>
-
-          <div v-if="selectedLocation" class="location-card-mobile">
-            <div class="location-header">
-              <div class="success-badge">
-                <i class="fas fa-check-circle"></i>
-                <span>Position confirmée</span>
-              </div>
-              <button type="button" @click="clearLocation" class="clear-btn">
-                <i class="fas fa-redo-alt"></i>
-              </button>
-            </div>
-            <div class="coordinates">
-              <i class="fas fa-map-pin"></i>
-              <span>{{ selectedLocation.lat.toFixed(6) }}, {{ selectedLocation.lng.toFixed(6) }}</span>
-            </div>
-          </div>
-
-          <div v-else class="empty-state-mobile">
-            <div class="pulse-animation">
-              <i class="fas fa-hand-pointer"></i>
-            </div>
-            <p>Touchez n'importe où sur la carte</p>
-          </div>
-        </div>
-
-        <div class="bottom-action-mobile">
-          <button 
-            type="button"
-            @click="nextStep" 
-            :disabled="!selectedLocation"
-            :class="['btn-mobile-primary', { disabled: !selectedLocation }]"
-          >
-            <span>Continuer</span>
-            <i class="fas fa-arrow-right"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- STEP 2: Formulaire -->
-      <div v-else-if="step === 'form'" class="step-container">
-        <form @submit.prevent="handleSubmit" class="mobile-form">
-          <div class="step-content-scroll">
-            <div class="form-group-mobile">
-              <label class="mobile-label">
-                <i class="fas fa-building"></i>
-                <span>Entreprise concernée</span>
-              </label>
-              <input 
-                v-model="formData.concerned_entreprise" 
-                type="text" 
-                class="mobile-input"
-                placeholder="Ex: Colas Madagascar"
-                required
-              />
-            </div>
-
-            <div class="form-group-mobile">
-              <label class="mobile-label">
-                <i class="fas fa-ruler-combined"></i>
-                <span>Surface endommagée (m²)</span>
-              </label>
-              <input 
-                v-model.number="formData.surface" 
-                type="number" 
-                class="mobile-input"
-                placeholder="Entrez la surface"
-                required
-                min="1"
-                inputmode="numeric"
-              />
-            </div>
-
-            <div class="form-group-mobile">
-              <label class="mobile-label">
-                <i class="fas fa-wallet"></i>
-                <span>Budget estimé (Ar)</span>
-              </label>
-              <input 
-                v-model.number="formData.budget" 
-                type="number" 
-                class="mobile-input"
-                placeholder="Montant en Ariary"
-                required
-                min="0"
-                inputmode="numeric"
-              />
-            </div>
-
-            <div class="location-summary-mobile">
-              <div class="summary-header">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>Localisation</span>
-              </div>
-              <div class="summary-coords">
-                {{ selectedLocation?.lat.toFixed(4) }}, {{ selectedLocation?.lng.toFixed(4) }}
-              </div>
-              <button type="button" @click="step = 'location'" class="change-location-btn">
-                Modifier la position
-              </button>
-            </div>
-          </div>
-
-          <div class="bottom-action-mobile split">
-            <button 
-              type="button" 
-              @click="step = 'location'" 
-              class="btn-mobile-secondary"
-            >
-              <i class="fas fa-arrow-left"></i>
+  <div v-if="isOpen" class="fixed inset-0 z-[2000] bg-[#f1f5f9] flex flex-col h-full w-full overflow-y-auto">
+    <!-- NAVBAR -->
+    <nav class="glass-nav fixed top-0 w-full z-50 h-16 flex items-center justify-between px-6">
+        <div class="flex items-center space-x-4">
+            <button @click="close" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                <i class="fas fa-chevron-left"></i>
             </button>
-            <button 
-              type="submit" 
-              :disabled="isSubmitting"
-              class="btn-mobile-primary flex-grow"
-            >
-              <i v-if="!isSubmitting" class="fas fa-paper-plane"></i>
-              <i v-else class="fas fa-spinner fa-spin"></i>
-              <span>{{ isSubmitting ? 'Envoi en cours...' : 'Créer le signalement' }}</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <!-- STEP 3: Confirmation -->
-      <div v-else-if="step === 'success'" class="step-container">
-        <div class="step-content-scroll center">
-          <div class="success-animation">
-            <div class="success-circle">
-              <i class="fas fa-check"></i>
-            </div>
-          </div>
-          <h3 class="success-title">Signalement créé !</h3>
-          <p class="success-text">Votre signalement a été enregistré avec succès et apparaîtra sur la carte</p>
+            <div class="text-lg font-extrabold tracking-tight">Intervention</div>
         </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="pt-28 px-4 max-w-xl mx-auto w-full pb-20">
         
-        <div class="bottom-action-mobile">
-          <button @click="closeAndRefresh" class="btn-mobile-primary">
-            <i class="fas fa-check"></i>
-            <span>Terminé</span>
-          </button>
+        <div class="mb-8 text-center">
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Détails techniques</h1>
+            <p class="text-slate-500 font-medium text-sm">Enregistrement des données de chantier</p>
         </div>
-      </div>
+
+        <form @submit.prevent="handleSubmit" class="space-y-4">
+            
+            <div class="form-card space-y-6">
+                
+                <!-- 0. LOCATION INFO (Helper) -->
+                <div class="bg-blue-50 p-3 rounded-2xl flex items-center justify-between" v-if="selectedLocation">
+                   <div class="flex items-center space-x-3">
+                      <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                        <i class="fas fa-map-marker-alt text-xs"></i>
+                      </div>
+                      <div class="text-xs">
+                        <p class="text-slate-500 font-bold uppercase">Position</p>
+                        <p class="font-bold text-slate-800">{{ selectedLocation.lat.toFixed(5) }}, {{ selectedLocation.lng.toFixed(5) }}</p>
+                      </div>
+                   </div>
+                   <button type="button" @click="emit('clearLocation')" class="text-blue-600 text-xs font-bold uppercase">Modifier</button>
+                </div>
+
+                <!-- 1. DATE -->
+                <div class="input-group">
+                    <label><i class="far fa-calendar-alt mr-2 text-blue-500"></i> Date de l'intervention</label>
+                    <div class="input-wrapper">
+                        <input v-model="formData.date_alert" type="date" class="custom-input" required>
+                    </div>
+                </div>
+
+                <!-- 2. SURFACE -->
+                <div class="input-group">
+                    <label><i class="fas fa-ruler-combined mr-2 text-blue-500"></i> Surface estimée (m²)</label>
+                    <div class="input-wrapper">
+                        <input v-model.number="formData.surface" type="number" placeholder="Ex: 1200" class="custom-input" required>
+                        <span class="input-icon font-bold text-xs">m²</span>
+                    </div>
+                </div>
+
+                <!-- 3. BUDGET -->
+                <div class="input-group">
+                    <label><i class="fas fa-wallet mr-2 text-blue-500"></i> Budget alloué (Ar)</label>
+                    <div class="input-wrapper">
+                        <input v-model.number="formData.budget" type="number" placeholder="Ex: 45 000 000" class="custom-input" required>
+                        <span class="input-icon font-bold text-xs">Ar</span>
+                    </div>
+                </div>
+
+                <!-- 4. ENTREPRISE -->
+                <div class="input-group">
+                    <label><i class="fas fa-hard-hat mr-2 text-blue-500"></i> Entreprise concernée</label>
+                    <div class="input-wrapper">
+                        <select v-model="formData.concerned_entreprise" class="custom-input appearance-none cursor-pointer">
+                            <option value="" disabled selected>Sélectionner l'entreprise</option>
+                            <option>Colas Madagascar</option>
+                            <option>Sogea Satom</option>
+                            <option>SMATP</option>
+                            <option>GEC Madagascar</option>
+                            <option>Hery Construction</option>
+                        </select>
+                        <i class="fas fa-chevron-down input-icon text-[10px]"></i>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- SUBMIT BUTTON -->
+            <div class="pt-4">
+                <button type="submit" :disabled="isSubmitting" class="w-full bg-slate-900 text-white py-5 rounded-[22px] font-black uppercase tracking-widest text-xs shadow-xl shadow-slate-200 active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
+                    <i v-if="isSubmitting" class="fas fa-circle-notch fa-spin"></i>
+                    <span>{{ isSubmitting ? 'Enregistrement...' : 'Enregistrer les données' }}</span>
+                </button>
+                <button type="button" @click="close" class="w-full mt-3 py-4 text-slate-400 font-bold text-xs uppercase tracking-widest">
+                    Annuler
+                </button>
+            </div>
+
+        </form>
+    </main>
+
+    <!-- SUCCESS TOAST -->
+    <div v-if="showSuccess" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-full shadow-2xl flex items-center space-x-3 transition-all duration-500 z-[3000]">
+        <i class="fas fa-check-circle"></i>
+        <span class="text-xs font-bold uppercase tracking-wider">Données enregistrées</span>
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { createRoadAlert } from '../utils/roadAlertApi';
 
-interface Props {
+const props = defineProps<{
   isOpen: boolean;
   selectedLocation: { lat: number; lng: number } | null;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  close: [];
-  clearLocation: [];
-  refresh: [];
 }>();
 
-const step = ref<'location' | 'form' | 'success'>('location');
+const emit = defineEmits<{
+  (e: 'close'): void;
+  (e: 'clearLocation'): void;
+  (e: 'refresh'): void;
+}>();
+
 const isSubmitting = ref(false);
+const showSuccess = ref(false);
 
 const formData = ref({
-  surface: 0,
-  budget: 0,
+  surface: null as number | null,
+  budget: null as number | null,
   concerned_entreprise: '',
+  date_alert: new Date().toISOString().split('T')[0],
+  status: 'Nouveau'
 });
 
-const nextStep = () => {
-  if (props.selectedLocation) {
-    step.value = 'form';
-  }
-};
-
-const clearLocation = () => {
-  emit('clearLocation');
+const close = () => {
+  emit('close');
 };
 
 const handleSubmit = async () => {
   if (!props.selectedLocation) return;
-
+  
   isSubmitting.value = true;
   try {
-    const alertData = {
-      surface: formData.value.surface,
-      budget: formData.value.budget,
+    const payload = {
+      surface: formData.value.surface || 0,
+      budget: formData.value.budget || 0,
       concerned_entreprise: formData.value.concerned_entreprise,
-      status: 'nouveau',
+      status: formData.value.status, 
+      date_alert: formData.value.date_alert,
       lattitude: props.selectedLocation.lat,
       longitude: props.selectedLocation.lng,
-      UID: `user-${Date.now()}`, // Générer un UID temporaire
-      date_alert: new Date().toISOString(),
+      UID: 'user_mobile_' + Date.now(), // Temporary UID logic
     };
 
-    await createRoadAlert(alertData);
-    step.value = 'success';
+    await createRoadAlert(payload);
+    
+    // Show success toast
+    showSuccess.value = true;
+    setTimeout(() => {
+        showSuccess.value = false;
+        close();
+        emit('refresh');
+        emit('clearLocation');
+        // Reset form
+        formData.value = {
+            surface: null,
+            budget: null,
+            concerned_entreprise: '',
+            date_alert: new Date().toISOString().split('T')[0],
+            status: 'Nouveau'
+        };
+    }, 2000);
+    
   } catch (error) {
-    console.error('Erreur lors de la création du signalement:', error);
-    alert('Une erreur est survenue lors de la création du signalement');
+    console.error(error);
+    alert('Erreur lors de la création');
   } finally {
     isSubmitting.value = false;
   }
 };
-
-const close = () => {
-  resetForm();
-  emit('close');
-};
-
-const closeAndRefresh = () => {
-  resetForm();
-  emit('refresh');
-  emit('close');
-};
-
-const resetForm = () => {
-  step.value = 'location';
-  formData.value = {
-    surface: 0,
-    budget: 0,
-    concerned_entreprise: '',
-  };
-  isSubmitting.value = false;
-};
 </script>
 
 <style scoped>
-/* === MODAL MOBILE FULLSCREEN === */
-#create-alert-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  z-index: 4000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+.glass-nav {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-#create-alert-modal.active {
-  opacity: 1;
-  pointer-events: all;
+.form-card {
+    background: white;
+    border-radius: 32px;
+    padding: 32px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
 }
 
-.modal-content-mobile {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  border-radius: 28px 28px 0 0;
-  height: 85vh;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.4s cubic-bezier(0.33, 1, 0.68, 1);
-  overflow: hidden;
+.input-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 10px;
+    padding-left: 4px;
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+.custom-input {
+    width: 100%;
+    background: #f8fafc;
+    border: 2px solid #f1f5f9;
+    border-radius: 18px;
+    padding: 16px 20px;
+    font-weight: 700;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    outline: none;
 }
 
-/* === HEADER MOBILE === */
-.mobile-header {
-  padding: 20px 16px 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
+.custom-input:focus {
+    background: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.08);
 }
 
-.back-button {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #f1f5f9;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
 }
 
-.back-button:active {
-  background: #e2e8f0;
-  transform: scale(0.95);
-}
-
-.header-center {
-  flex: 1;
-  text-align: center;
-  padding: 0 12px;
-}
-
-.header-title {
-  font-size: 18px;
-  font-weight: 800;
-  color: #1e293b;
-  margin-bottom: 8px;
-}
-
-.progress-dots {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #cbd5e1;
-  transition: all 0.3s;
-}
-
-.dot.active {
-  background: #2563eb;
-  width: 24px;
-  border-radius: 4px;
-}
-
-.header-spacer {
-  width: 44px;
-  flex-shrink: 0;
-}
-
-/* === STEP CONTAINER === */
-.step-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.step-content-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 20px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.step-content-scroll.center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-/* === INSTRUCTION CARD MOBILE === */
-.instruction-card-mobile {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border-radius: 20px;
-  padding: 24px;
-  text-align: center;
-  margin-bottom: 20px;
-  border: 2px solid #bfdbfe;
-}
-
-.instruction-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: #2563eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
-}
-
-.instruction-icon i {
-  font-size: 28px;
-  color: white;
-}
-
-.instruction-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: #1e293b;
-  margin-bottom: 8px;
-}
-
-.instruction-text {
-  font-size: 14px;
-  color: #64748b;
-  line-height: 1.6;
-}
-
-/* === LOCATION CARD MOBILE === */
-.location-card-mobile {
-  background: white;
-  border: 2px solid #22c55e;
-  border-radius: 20px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
-}
-
-.location-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.success-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f0fdf4;
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #16a34a;
-}
-
-.success-badge i {
-  font-size: 16px;
-}
-
-.clear-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #fee2e2;
-  border: none;
-  color: #ef4444;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.clear-btn:active {
-  background: #fecaca;
-  transform: rotate(180deg);
-}
-
-.coordinates {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 12px;
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  font-weight: 600;
-  color: #334155;
-}
-
-.coordinates i {
-  color: #2563eb;
-  font-size: 16px;
-}
-
-/* === EMPTY STATE MOBILE === */
-.empty-state-mobile {
-  text-align: center;
-  padding: 40px 20px;
-  color: #94a3b8;
-}
-
-.pulse-animation {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: #f1f5f9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  animation: pulse 2s infinite;
-}
-
-.pulse-animation i {
-  font-size: 32px;
-  color: #cbd5e1;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(203, 213, 225, 0.7);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 10px rgba(203, 213, 225, 0);
-  }
-}
-
-.empty-state-mobile p {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-/* === FORM MOBILE === */
-.mobile-form {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.form-group-mobile {
-  margin-bottom: 24px;
-}
-
-.mobile-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #334155;
-  margin-bottom: 12px;
-}
-
-.mobile-label i {
-  color: #2563eb;
-  font-size: 16px;
-}
-
-.mobile-input {
-  width: 100%;
-  padding: 16px;
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-  background: white;
-  transition: all 0.2s;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.mobile-input:focus {
-  outline: none;
-  border-color: #2563eb;
-  background: #f8fafc;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-}
-
-.mobile-input::placeholder {
-  color: #cbd5e1;
-}
-
-/* === LOCATION SUMMARY MOBILE === */
-.location-summary-mobile {
-  background: #eff6ff;
-  border: 2px solid #bfdbfe;
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.summary-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #1e40af;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
-.summary-coords {
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  font-weight: 600;
-  color: #334155;
-  margin-bottom: 12px;
-  padding: 10px;
-  background: white;
-  border-radius: 8px;
-}
-
-.change-location-btn {
-  width: 100%;
-  padding: 10px;
-  background: white;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  color: #2563eb;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.change-location-btn:active {
-  background: #f0f9ff;
-}
-
-/* === BOTTOM ACTION MOBILE === */
-.bottom-action-mobile {
-  padding: 16px 20px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
-  background: white;
-  border-top: 1px solid #e2e8f0;
-  flex-shrink: 0;
-}
-
-.bottom-action-mobile.split {
-  display: flex;
-  gap: 12px;
-}
-
-/* === BUTTONS MOBILE === */
-.btn-mobile-primary {
-  width: 100%;
-  padding: 18px 24px;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 16px;
-  font-size: 16px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  cursor: pointer;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
-  transition: all 0.2s;
-}
-
-.btn-mobile-primary:active:not(.disabled) {
-  transform: scale(0.98);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-}
-
-.btn-mobile-primary.disabled {
-  background: #cbd5e1;
-  color: #94a3b8;
-  box-shadow: none;
-  cursor: not-allowed;
-}
-
-.btn-mobile-primary.flex-grow {
-  flex: 1;
-}
-
-.btn-mobile-secondary {
-  width: 56px;
-  height: 56px;
-  padding: 0;
-  background: #f1f5f9;
-  color: #64748b;
-  border: none;
-  border-radius: 16px;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-mobile-secondary:active {
-  background: #e2e8f0;
-  transform: scale(0.95);
-}
-
-/* === SUCCESS ANIMATION === */
-.success-animation {
-  margin-bottom: 24px;
-}
-
-.success-circle {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-  box-shadow: 0 12px 40px rgba(34, 197, 94, 0.4);
-  animation: scaleIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-.success-circle i {
-  font-size: 56px;
-  color: white;
-}
-
-@keyframes scaleIn {
-  0% {
-    transform: scale(0) rotate(-180deg);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-}
-
-.success-title {
-  font-size: 28px;
-  font-weight: 900;
-  color: #1e293b;
-  margin-bottom: 12px;
-}
-
-.success-text {
-  font-size: 15px;
-  color: #64748b;
-  line-height: 1.6;
-  max-width: 320px;
-  margin: 0 auto;
-}
-
-/* === SPINNER ANIMATION === */
-.fa-spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.input-icon {
+    position: absolute;
+    right: 20px;
+    color: #cbd5e1;
+    pointer-events: none;
 }
 </style>

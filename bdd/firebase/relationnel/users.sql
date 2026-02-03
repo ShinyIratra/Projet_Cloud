@@ -86,6 +86,15 @@ CREATE TABLE signalements(
    FOREIGN KEY(Id_users) REFERENCES users(Id_users)
 );
 
+CREATE TABLE photos_signalements(
+   Id_photos_signalements SERIAL,
+   chemin TEXT NOT NULL,
+   Id_signalements INTEGER,
+   PRIMARY KEY(Id_photos_signalements),
+   FOREIGN KEY(Id_signalements) REFERENCES signalements(Id_signalements)
+);
+
+
 -- Fonctions helper pour extraire lat/lng depuis position
 CREATE OR REPLACE FUNCTION get_latitude(pos GEOGRAPHY)
 RETURNS DOUBLE PRECISION AS $$

@@ -72,7 +72,11 @@ cd frontend-web/roadAlert
 npm install  # Première fois seulement
 npm run dev
 ```
-
+### installer JWT token pour le swagger 
+```bash
+cd backend
+npm install jsonwebtoken
+```
 ### 5. Accéder à l'application
 - Frontend : http://localhost:5173
 - Backend API : http://localhost:5000
