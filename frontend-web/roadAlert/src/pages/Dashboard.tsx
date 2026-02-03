@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { IonContent, IonPage } from '@ionic/react';
-import { fetchRoadAlerts, RoadAlert } from '../utils/roadAlertApi';
+import { useHistory } from 'react-router-dom';
+import { api, Signalement } from '../utils/api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,7 +41,7 @@ interface CompanyStats {
 }
 
 const Dashboard: React.FC = () => {
-  const [alerts, setAlerts] = useState<RoadAlert[]>([]);
+  const [alerts, setAlerts] = useState<Signalement[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalPoints: 0,
     totalSurface: 0,
@@ -50,15 +51,22 @@ const Dashboard: React.FC = () => {
   const [companyStats, setCompanyStats] = useState<CompanyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const history = useHistory();
+  const [isManager, setIsManager] = useState(false);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      setIsManager(user.type_user?.toLowerCase() === 'manager');
+    }
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await fetchRoadAlerts();
+      const data = await api.getSignalements();
       setAlerts(data);
       calculateStats(data);
     } catch (error) {
@@ -68,12 +76,12 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const calculateStats = (data: RoadAlert[]) => {
+  const calculateStats = (data: Signalement[]) => {
     const totalPoints = data.length;
-    const totalSurface = data.reduce((sum, alert) => sum + alert.surface, 0);
-    const totalBudget = data.reduce((sum, alert) => sum + alert.budget, 0);
+    const totalSurface = data.reduce((sum, alert) => sum + (Number(alert.surface) || 0), 0);
+    const totalBudget = data.reduce((sum, alert) => sum + (Number(alert.budget) || 0), 0);
     const completedCount = data.filter(alert => 
-      alert.status.toLowerCase() === 'terminé'
+      alert.status?.toLowerCase().includes('termin')
     ).length;
     const progressPercentage = totalPoints > 0 
       ? Math.round((completedCount / totalPoints) * 100) 
@@ -84,7 +92,7 @@ const Dashboard: React.FC = () => {
     // Calculate company statistics
     const companyMap: { [key: string]: number } = {};
     data.forEach(alert => {
-      const company = alert.concerned_entreprise;
+      const company = alert.entreprise || 'Non assigné';
       companyMap[company] = (companyMap[company] || 0) + 1;
     });
 
@@ -98,7 +106,7 @@ const Dashboard: React.FC = () => {
   };
 
   const formatBudget = (budget: number) => {
-    return (budget / 1_000_000).toFixed(0) + 'M';
+    return budget.toLocaleString('fr-FR');
   };
 
   const formatDate = (dateStr: string) => {
@@ -111,25 +119,15 @@ const Dashboard: React.FC = () => {
   };
 
   const getStatusClass = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'terminé':
-        return 'status-done';
-      case 'en cours':
-        return 'status-progress';
-      default:
-        return 'status-new';
-    }
+    if (!status) return 'status-new';
+    const s = status.toLowerCase();
+    if (s === 'termine' || s.includes('termin')) return 'status-done';
+    if (s === 'en cours' || s.includes('cours')) return 'status-progress';
+    return 'status-new';
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'terminé':
-        return 'Terminé';
-      case 'en cours':
-        return 'En cours';
-      default:
-        return 'Nouveau';
-    }
+    return status || 'Nouveau';
   };
 
   // Generate chart data based on period
@@ -138,10 +136,33 @@ const Dashboard: React.FC = () => {
       ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
       : ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
 
-    // Simulate data based on alerts
+    // Calculer les données réelles basées sur les signalements
+    const now = new Date();
     const dataPoints = period === 'week'
-      ? [5, 12, 8, 15, 10, 22, 18]
-      : [45, 62, 55, 78];
+      ? [0, 1, 2, 3, 4, 5, 6].map(daysAgo => {
+          const targetDate = new Date(now);
+          targetDate.setDate(now.getDate() - (6 - daysAgo));
+          targetDate.setHours(0, 0, 0, 0);
+          const nextDay = new Date(targetDate);
+          nextDay.setDate(targetDate.getDate() + 1);
+          
+          return alerts.filter(alert => {
+            const alertDate = new Date(alert.date_signalement);
+            return alertDate >= targetDate && alertDate < nextDay;
+          }).length;
+        })
+      : [0, 1, 2, 3].map(weeksAgo => {
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - ((3 - weeksAgo) * 7));
+          weekStart.setHours(0, 0, 0, 0);
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekStart.getDate() + 7);
+          
+          return alerts.filter(alert => {
+            const alertDate = new Date(alert.date_signalement);
+            return alertDate >= weekStart && alertDate < weekEnd;
+          }).length;
+        });
 
     return {
       labels,
@@ -240,11 +261,11 @@ const Dashboard: React.FC = () => {
             <span className="brand-tag">Tana</span>
           </div>
           <div className="navbar-right">
-            <button className="export-btn">
-              <i className="fas fa-file-export"></i> Export PDF
-            </button>
-            <div className="profile-avatar">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="profile" />
+            <div className="profile-info">
+              <p className="profile-name">Manager</p>
+            </div>
+            <div className="profile-avatar" style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
             </div>
           </div>
         </nav>
@@ -257,9 +278,27 @@ const Dashboard: React.FC = () => {
               <span className="header-badge">Vue d'ensemble</span>
               <h1 className="dashboard-title">Tableau de bord</h1>
             </div>
-            <div className="time-selector">
-              <button className="time-btn active">7 Derniers jours</button>
-              <button className="time-btn">Mensuel</button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {isManager && (
+                <button 
+                  onClick={() => history.push('/blocked-users')}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#fef2f2',
+                    color: '#dc2626',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className="fas fa-user-shield"></i> Utilisateurs bloqués
+                </button>
+              )}
             </div>
           </div>
 
@@ -295,8 +334,8 @@ const Dashboard: React.FC = () => {
               <p className="stat-label">Budget Total</p>
               <div className="stat-value-row">
                 <h2 className="stat-value">
-                  {(stats.totalBudget / 1_000_000_000).toFixed(2)}{' '}
-                  <span className="stat-unit">Md Ar</span>
+                  {stats.totalBudget.toLocaleString('fr-FR')}{' '}
+                  <span className="stat-unit">Ar</span>
                 </h2>
               </div>
             </div>
@@ -387,9 +426,9 @@ const Dashboard: React.FC = () => {
                   {alerts.map((alert, index) => (
                     <tr key={index}>
                       <td>
-                        <div className="location-name">{alert.concerned_entreprise}</div>
+                        <div className="location-name">{alert.entreprise}</div>
                         <div className="location-date">
-                          Signalé le {formatDate(alert.date_alert)}
+                          Signalé le {formatDate(alert.date_signalement)}
                         </div>
                       </td>
                       <td>
@@ -402,11 +441,10 @@ const Dashboard: React.FC = () => {
                       </td>
                       <td>
                         <span className="budget-value">
-                          {formatBudget(alert.budget)}{' '}
-                          <span className="budget-unit">Ar</span>
+                          {formatBudget(alert.budget)} Ar
                         </span>
                       </td>
-                      <td className="company-cell">{alert.concerned_entreprise}</td>
+                      <td className="company-cell">{alert.entreprise}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -418,10 +456,10 @@ const Dashboard: React.FC = () => {
         {/* FOOTER */}
         <footer className="dashboard-footer">
           <div className="footer-nav">
-            <button className="footer-btn">
+            <button className="footer-btn" onClick={() => history.push('/home')}>
               <i className="fas fa-home"></i>
             </button>
-            <button className="footer-btn">
+            <button className="footer-btn" onClick={() => history.push('/home')}>
               <i className="fas fa-map-marked-alt"></i>
             </button>
             <button className="footer-btn disabled">
@@ -430,7 +468,7 @@ const Dashboard: React.FC = () => {
             <button className="footer-btn active">
               <i className="fas fa-chart-line"></i>
             </button>
-            <button className="footer-btn">
+            <button className="footer-btn" onClick={() => history.push('/management')}>
               <i className="fas fa-cog"></i>
             </button>
           </div>

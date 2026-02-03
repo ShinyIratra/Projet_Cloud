@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IonContent, IonPage } from '@ionic/react';
+import { useHistory } from 'react-router-dom';
+import { api } from '../utils/api';
 import './Login.css';
 
 type Particle = {
@@ -14,6 +16,11 @@ const Login: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animationRef = useRef<number | null>(null);
+  const history = useHistory();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -92,9 +99,32 @@ const Login: React.FC = () => {
     };
   }, []);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Hook up to /api/login when backend wiring is ready.
+    setError('');
+    setLoading(true);
+
+    try {
+      const user = await api.login(email, password);
+      // Stocker l'utilisateur dans localStorage
+      localStorage.setItem('user', JSON.stringify(user));
+      // Forcer le rafraîchissement en rechargeant la page après redirection
+      window.location.href = '/home';
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Erreur de connexion';
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = () => {
+    history.push('/register');
+  };
+
+  const handleVisitor = () => {
+    localStorage.removeItem('user');
+    history.push('/home');
   };
 
   return (
@@ -107,20 +137,36 @@ const Login: React.FC = () => {
             <h1>Identifiant</h1>
             <p className="subtitle">Entrer vos identifiants</p>
 
-            <div id="error-message" className="error-container" aria-live="polite">
-              <p className="error-text">Trop de tentatives. Utilisateur bloqué. Contactez le manager.</p>
+            <div id="error-message" className={`error-container ${error ? 'show' : ''}`} aria-live="polite">
+              <p className="error-text">{error}</p>
             </div>
 
             <form onSubmit={handleSubmit}>
-              <input type="email" name="email" placeholder="Email ou téléphone" required />
-              <input type="password" name="password" placeholder="Mot de passe" required />
-              <button type="submit" className="btn-primary">Continuer</button>
+              <input 
+                type="email" 
+                name="email" 
+                placeholder="Email" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input 
+                type="password" 
+                name="password" 
+                placeholder="Mot de passe" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? 'Connexion...' : 'Continuer'}
+              </button>
             </form>
 
             <div className="actions">
-              <a href="#">Oublié ?</a>
+              <a href="#" onClick={handleVisitor}>Mode visiteur</a>
               <span className="separator" />
-              <a href="#">Créer un compte</a>
+              <a href="#" onClick={handleRegister}>Créer un compte</a>
             </div>
           </main>
 

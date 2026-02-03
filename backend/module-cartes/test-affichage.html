@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Test Carte Antananarivo - Module Carte</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Leaflet CSS (LOCAL - Fonctionne hors connexion) -->
+    <link rel="stylesheet" href="leaflet/leaflet.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        
+        .info-panel {
+            background: white;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .info-panel h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .status-ok {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        ul {
+            line-height: 1.8;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Panneau d'information -->
+    <div class="info-panel">
+        <h2>🗺️ TÂCHE 3 — Test d'affichage des tiles depuis le serveur local</h2>
+        
+        <p><strong>État du serveur :</strong> 
+            <span class="status status-ok">✅ Serveur local Docker (localhost:8080)</span>
+        </p>
+        
+        <p><strong>Coordonnées :</strong> Antananarivo, Madagascar</p>
+        <ul>
+            <li>Latitude : <code>-18.8792</code></li>
+            <li>Longitude : <code>47.5079</code></li>
+            <li>Zoom initial : <code>13</code></li>
+        </ul>
+        
+        <div class="warning">
+            <strong>⚠️ Important :</strong> Cette page doit être servie via HTTP (pas <code>file://</code>)
+            <br>Commande : <code>python -m http.server 8000</code>
+            <br>URL : <code>http://localhost:8000/test-affichage.html</code>
+        </div>
+    </div>
+
+    <!-- Carte Leaflet -->
+    <div id="map"></div>
+
+    <!-- Panneau de résultats -->
+    <div class="info-panel">
+        <h3>📋 Fonctionnalités testées :</h3>
+        <ul>
+            <li>✅ Affichage de la carte Leaflet</li>
+            <li>✅ Centrage sur Antananarivo</li>
+            <li>✅ Navigation (zoom +/-, déplacement par drag)</li>
+            <li>✅ Chargement des tuiles depuis le serveur local (<code>localhost:8080</code>)</li>
+            <li>✅ Marqueur de test au centre d'Antananarivo</li>
+        </ul>
+        
+        <h3>🔍 Comment vérifier que ça fonctionne :</h3>
+        <ol>
+            <li>Ouvrez les <strong>DevTools</strong> du navigateur (F12)</li>
+            <li>Allez dans l'onglet <strong>Network</strong></li>
+            <li>Filtrez par "tile" ou "png"</li>
+            <li>Vérifiez que les requêtes vers <code>http://localhost:8080/tile/...</code> retournent <strong>200 OK</strong></li>
+            <li>Les tuiles doivent s'afficher sur la carte (rues, bâtiments, etc.)</li>
+        </ol>
+        
+        <h3>⚠️ Problèmes courants :</h3>
+        <ul>
+            <li><strong>Carte blanche :</strong> Vérifiez que le serveur Docker tourne (<code>docker ps</code>)</li>
+            <li><strong>Tuiles lentes :</strong> Normal la première fois (génération à la demande)</li>
+            <li><strong>Erreur CORS :</strong> Servez la page via HTTP, pas <code>file://</code></li>
+        </ul>
+    </div>
+
+    <!-- Leaflet JavaScript (LOCAL - Fonctionne hors connexion) -->
+    <script src="leaflet/leaflet.js"></script>
+    
+    <script>
+        // Initialisation de la carte centrée sur Antananarivo
+        const map = L.map('map').setView([-18.8792, 47.5079], 13);
+
+        // Configuration de la couche de tuiles depuis le serveur local
+        const tileLayer = L.tileLayer('http://localhost:8080/tile/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors | Serveur local Docker',
+            maxZoom: 19,
+            minZoom: 0,
+            timeout: 30000  // 30 secondes de timeout (génération des tuiles peut être lente)
+        });
+        
+        tileLayer.addTo(map);
+
+        // Ajout d'un marqueur au centre d'Antananarivo
+        const marker = L.marker([-18.8792, 47.5079]).addTo(map);
+        marker.bindPopup(`
+            <strong>Centre d'Antananarivo</strong><br>
+            Latitude : -18.8792<br>
+            Longitude : 47.5079<br>
+            <em>Marqueur de test - TÂCHE 3</em>
+        `).openPopup();
+
+        // Logs de débogage dans la console
+        console.log('=== TÂCHE 3 - Test d\'affichage ===');
+        console.log('Centre de la carte:', map.getCenter());
+        console.log('Niveau de zoom:', map.getZoom());
+        console.log('URL des tuiles:', 'http://localhost:8080/tile/{z}/{x}/{y}.png');
+        
+        // Événements pour le débogage
+        map.on('zoomend', function() {
+            console.log('Nouveau zoom:', map.getZoom());
+        });
+        
+        tileLayer.on('tileerror', function(error) {
+            console.error('Erreur de chargement de tuile:', error);
+        });
+        
+        tileLayer.on('tileload', function(event) {
+            console.log('Tuile chargée:', event.coords);
+        });
+    </script>
+</body>
+</html>

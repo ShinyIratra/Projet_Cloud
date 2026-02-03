@@ -1,3 +1,19 @@
+# ===================================
+# PROJET CLOUD - GitIgnore
+# ===================================
+
+# ========== FICHIERS OSM (TR�S VOLUMINEUX) ==========
+# Ne pas commiter les fichiers de donn�es OpenStreetMap (>300 MB)
+*.osm.pbf
+backend/module-cartes/region.osm.pbf
+backend/module-cartes/madagascar*.osm.pbf
+
+# ========== DOCKER ==========
+**/osm-data/
+**/*_osm-data/
+
+# ========== NODE.JS ==========
+node_modules/
 frontend-mobile/roadAlert/node_modules
 frontend-web/roadAlert/node_modules
 
@@ -8,3 +24,58 @@ backend/.env
 roadAlert/.env
 roadAlert/serviceAccountKey.json
 roadAlert/node_modules
+
+sujet
+backend/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ========== PYTHON ==========
+__pycache__/
+*.py[cod]
+
+# ========== IONIC / ANGULAR / REACT ==========
+.angular/
+.ionic/
+www/
+platforms/
+plugins/
+*.apk
+*.ipa
+dist/
+build/
+
+# ========== ANDROID ==========
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+android/app/build/
+android/build/
+
+# ========== TESTS ==========
+coverage/
+cypress/videos/
+cypress/screenshots/
+
+# ========== ENVIRONNEMENT ==========
+.env
+.env.local
+
+# ========== IDE & LOGS ==========
+.vscode/
+*.log
+*.tmp
+.cache/
+
+# ========== FIREBASE ==========
+.firebase/
+firebase-debug.log
+
+# ========== FICHIERS DE TEST ==========
+test.png
+test-*.png
