@@ -2,7 +2,7 @@
   <div id="bottom-sheet" :class="{ active: isOpen && alert }" @click.self="close">
     <div class="sheet-handle" @click="close"></div>
     
-    <div class="px-6 pb-10" v-if="alert">
+    <div class="px-6 pb-40" v-if="alert">
       <div class="flex justify-between items-start mb-4">
         <div>
           <span 
@@ -87,21 +87,25 @@ const getLatitude = (alert: RoadAlert) => {
 };
 
 const getStatusClass = (status: string) => {
+  if (!status) return 'bg-gray-100 text-gray-700';
+  const normStatus = status.toLowerCase().replace(/é|è/g, 'e').replace(/\s/g, '_');
   const classes: Record<string, string> = {
     'nouveau': 'bg-red-100 text-red-700',
     'en_cours': 'bg-blue-100 text-blue-700',
     'termine': 'bg-green-100 text-green-700',
   };
-  return classes[status.toLowerCase()] || 'bg-gray-100 text-gray-700';
+  return classes[normStatus] || 'bg-gray-100 text-gray-700';
 };
 
 const getStatusLabel = (status: string) => {
+  if (!status) return 'Inconnu';
+  const normStatus = status.toLowerCase().replace(/é|è/g, 'e').replace(/\s/g, '_');
   const labels: Record<string, string> = {
     'nouveau': 'Nouveau',
     'en_cours': 'En cours',
     'termine': 'Terminé',
   };
-  return labels[status.toLowerCase()] || status;
+  return labels[normStatus] || status;
 };
 
 const formatDate = (dateString: string) => {
@@ -147,6 +151,7 @@ const formatBudget = (budget: number) => {
 /* Utility classes */
 .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
 .pb-10 { padding-bottom: 2.5rem; }
+.pb-40 { padding-bottom: 10rem; }
 .mb-4 { margin-bottom: 1rem; }
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-6 { margin-bottom: 1.5rem; }

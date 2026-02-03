@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'RoadAlerts API - Auth Module',
+      title: 'RoadAlerts API - Complete Documentation',
       version: '1.0.0',
-      description: 'API de gestion des utilisateurs utilisant Firebase Auth (Projet Cloud S5)',
+      description: 'API complète de gestion des signalements routiers - Auth Firebase, Auth Web, Signalements, et Synchronisation (Projet Cloud S5)',
       contact: {
         name: 'Équipe Promotion 17',
       },

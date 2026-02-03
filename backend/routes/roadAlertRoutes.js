@@ -10,7 +10,7 @@ import RoadAlertController from '../controllers/RoadAlertController.js';
 
 /**
  * @swagger
- * /road_alerts:
+ * /api/road_alerts:
  *   post:
  *     summary: Créer un nouveau signalement routier
  *     tags: [RoadAlerts]
@@ -56,7 +56,7 @@ import RoadAlertController from '../controllers/RoadAlertController.js';
 
 /**
  * @swagger
- * /road_alerts:
+ * /api/road_alerts:
  *   get:
  *     summary: Récupérer tous les signalements routiers
  *     tags: [RoadAlerts]
@@ -69,7 +69,7 @@ import RoadAlertController from '../controllers/RoadAlertController.js';
 
 /**
  * @swagger
- * /road_alerts:
+ * /api/road_alerts:
  *   put:
  *     summary: Mettre à jour un signalement routier
  *     tags: [RoadAlerts]
@@ -108,7 +108,7 @@ import RoadAlertController from '../controllers/RoadAlertController.js';
 
 /**
  * @swagger
- * /road_alerts/status:
+ * /api/road_alerts/status:
  *   patch:
  *     summary: Mettre à jour le statut d'un signalement routier
  *     tags: [RoadAlerts]
@@ -135,7 +135,7 @@ import RoadAlertController from '../controllers/RoadAlertController.js';
 
 /**
  * @swagger
- * /road_alerts/user/{UID}:
+ * /api/road_alerts/user/{UID}:
  *   get:
  *     summary: Récupérer les signalements routiers par utilisateur
  *     tags: [RoadAlerts]
