@@ -89,7 +89,9 @@ CREATE TABLE signalements(
 CREATE TABLE photos_signalements(
    Id_photos_signalements SERIAL,
    chemin TEXT NOT NULL,
-   PRIMARY KEY(Id_photos_signalements)
+   Id_signalements INTEGER,
+   PRIMARY KEY(Id_photos_signalements),
+   FOREIGN KEY(Id_signalements) REFERENCES signalements(Id_signalements)
 );
 
 
