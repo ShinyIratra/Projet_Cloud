@@ -38,6 +38,24 @@ export const createRoadAlert = async (alert: Omit<RoadAlert, 'id'>): Promise<Roa
   return result.data;
 };
 
+export interface MobileRoadAlert {
+  UID: string;
+  date_alert: string;
+  lattitude: number;
+  longitude: number;
+}
+
+export const createMobileRoadAlert = async (alert: MobileRoadAlert): Promise<RoadAlert> => {
+  const response = await fetch(`${API_URL}/mobile/road_alerts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(alert),
+  });
+  if (!response.ok) throw new Error('Erreur lors de la création du signalement');
+  const result = await response.json();
+  return result.data;
+};
+
 export const updateRoadAlert = async (alert: RoadAlert): Promise<RoadAlert> => {
   const response = await fetch(`${API_URL}/road_alerts`, {
     method: 'PUT',

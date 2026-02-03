@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
-import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Profile from '../views/Profile.vue'
 import Settings from '../views/Settings.vue'
@@ -21,11 +20,6 @@ const routes: Array<RouteRecordRaw> = [
     path: '/login',
     name: 'Login',
     component: Login
-  },
-  {
-    path: '/register',
-    name: 'Register',
-    component: Register
   },
   {
     path: '/home',
@@ -53,8 +47,8 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authToken = localStorage.getItem('authToken');
   const isAuthenticated = !!authToken;
-  const authRoutes = ['/login', '/register'];
-  const publicRoutes = ['/login', '/register', '/home', '/dashboard', '/profile', '/settings'];
+  const authRoutes = ['/login'];
+  const publicRoutes = ['/login', '/home', '/dashboard', '/profile', '/settings'];
 
   // Si déjà connecté et essaie d'aller sur login/register, rediriger vers home
   if (authRoutes.includes(to.path) && isAuthenticated) {

@@ -6,7 +6,7 @@
             <button @click="close" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-600">
                 <i class="fas fa-chevron-left"></i>
             </button>
-            <div class="text-lg font-extrabold tracking-tight">Intervention</div>
+            <div class="text-lg font-extrabold tracking-tight">Nouveau signalement</div>
         </div>
     </nav>
 
@@ -14,8 +14,8 @@
     <main class="pt-28 px-4 max-w-xl mx-auto w-full pb-20">
         
         <div class="mb-8 text-center">
-            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Détails techniques</h1>
-            <p class="text-slate-500 font-medium text-sm">Enregistrement des données de chantier</p>
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Signaler un problème</h1>
+            <p class="text-slate-500 font-medium text-sm">Enregistrement d'un nouveau signalement routier</p>
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -38,43 +38,9 @@
 
                 <!-- 1. DATE -->
                 <div class="input-group">
-                    <label><i class="far fa-calendar-alt mr-2 text-blue-500"></i> Date de l'intervention</label>
+                    <label><i class="far fa-calendar-alt mr-2 text-blue-500"></i> Date du signalement</label>
                     <div class="input-wrapper">
                         <input v-model="formData.date_alert" type="date" class="custom-input" required>
-                    </div>
-                </div>
-
-                <!-- 2. SURFACE -->
-                <div class="input-group">
-                    <label><i class="fas fa-ruler-combined mr-2 text-blue-500"></i> Surface estimée (m²)</label>
-                    <div class="input-wrapper">
-                        <input v-model.number="formData.surface" type="number" placeholder="Ex: 1200" class="custom-input" required>
-                        <span class="input-icon font-bold text-xs">m²</span>
-                    </div>
-                </div>
-
-                <!-- 3. BUDGET -->
-                <div class="input-group">
-                    <label><i class="fas fa-wallet mr-2 text-blue-500"></i> Budget alloué (Ar)</label>
-                    <div class="input-wrapper">
-                        <input v-model.number="formData.budget" type="number" placeholder="Ex: 45 000 000" class="custom-input" required>
-                        <span class="input-icon font-bold text-xs">Ar</span>
-                    </div>
-                </div>
-
-                <!-- 4. ENTREPRISE -->
-                <div class="input-group">
-                    <label><i class="fas fa-hard-hat mr-2 text-blue-500"></i> Entreprise concernée</label>
-                    <div class="input-wrapper">
-                        <select v-model="formData.concerned_entreprise" class="custom-input appearance-none cursor-pointer">
-                            <option value="" disabled selected>Sélectionner l'entreprise</option>
-                            <option>Colas Madagascar</option>
-                            <option>Sogea Satom</option>
-                            <option>SMATP</option>
-                            <option>GEC Madagascar</option>
-                            <option>Hery Construction</option>
-                        </select>
-                        <i class="fas fa-chevron-down input-icon text-[10px]"></i>
                     </div>
                 </div>
 
@@ -84,7 +50,7 @@
             <div class="pt-4">
                 <button type="submit" :disabled="isSubmitting" class="w-full bg-slate-900 text-white py-5 rounded-[22px] font-black uppercase tracking-widest text-xs shadow-xl shadow-slate-200 active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
                     <i v-if="isSubmitting" class="fas fa-circle-notch fa-spin"></i>
-                    <span>{{ isSubmitting ? 'Enregistrement...' : 'Enregistrer les données' }}</span>
+                    <span>{{ isSubmitting ? 'Enregistrement...' : 'Créer le signalement' }}</span>
                 </button>
                 <button type="button" @click="close" class="w-full mt-3 py-4 text-slate-400 font-bold text-xs uppercase tracking-widest">
                     Annuler
@@ -97,7 +63,7 @@
     <!-- SUCCESS TOAST -->
     <div v-if="showSuccess" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-full shadow-2xl flex items-center space-x-3 transition-all duration-500 z-[3000]">
         <i class="fas fa-check-circle"></i>
-        <span class="text-xs font-bold uppercase tracking-wider">Données enregistrées</span>
+        <span class="text-xs font-bold uppercase tracking-wider">Signalement créé</span>
     </div>
 
   </div>
@@ -105,7 +71,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { createRoadAlert } from '../utils/roadAlertApi';
+import { createMobileRoadAlert } from '../utils/roadAlertApi';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -122,34 +88,49 @@ const isSubmitting = ref(false);
 const showSuccess = ref(false);
 
 const formData = ref({
-  surface: null as number | null,
-  budget: null as number | null,
-  concerned_entreprise: '',
-  date_alert: new Date().toISOString().split('T')[0],
-  status: 'Nouveau'
+  date_alert: new Date().toISOString().split('T')[0]
 });
 
 const close = () => {
   emit('close');
 };
 
+// Fonction pour récupérer l'UID de l'utilisateur
+const getUserUID = (): string => {
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      return user.UID || user.uid || '';
+    } catch (e) {
+      console.error('Erreur lors de la récupération de l\'UID:', e);
+    }
+  }
+  return '';
+};
+
 const handleSubmit = async () => {
-  if (!props.selectedLocation) return;
+  if (!props.selectedLocation) {
+    alert('Veuillez sélectionner une localisation sur la carte');
+    return;
+  }
+
+  const userUID = getUserUID();
+  if (!userUID) {
+    alert('Utilisateur non connecté. Veuillez vous connecter.');
+    return;
+  }
   
   isSubmitting.value = true;
   try {
     const payload = {
-      surface: formData.value.surface || 0,
-      budget: formData.value.budget || 0,
-      concerned_entreprise: formData.value.concerned_entreprise,
-      status: formData.value.status, 
+      UID: userUID,
       date_alert: formData.value.date_alert,
       lattitude: props.selectedLocation.lat,
       longitude: props.selectedLocation.lng,
-      UID: 'user_mobile_' + Date.now(), // Temporary UID logic
     };
 
-    await createRoadAlert(payload);
+    await createMobileRoadAlert(payload);
     
     // Show success toast
     showSuccess.value = true;
@@ -160,17 +141,13 @@ const handleSubmit = async () => {
         emit('clearLocation');
         // Reset form
         formData.value = {
-            surface: null,
-            budget: null,
-            concerned_entreprise: '',
-            date_alert: new Date().toISOString().split('T')[0],
-            status: 'Nouveau'
+            date_alert: new Date().toISOString().split('T')[0]
         };
     }, 2000);
     
   } catch (error) {
     console.error(error);
-    alert('Erreur lors de la création');
+    alert('Erreur lors de la création du signalement');
   } finally {
     isSubmitting.value = false;
   }

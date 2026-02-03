@@ -38,8 +38,6 @@
 
           <div class="actions">
             <a href="#" @click.prevent="handleForgotPassword">Oublié ?</a>
-            <span class="separator" />
-            <a href="#" @click.prevent="handleCreateAccount">Créer un compte</a>
           </div>
         </main>
 
@@ -171,10 +169,6 @@ const handleSubmit = async () => {
 const handleForgotPassword = () => {
   // TODO: Implémenter la récupération de mot de passe
   console.log('Mot de passe oublié');
-};
-
-const handleCreateAccount = () => {
-  router.push('/register');
 };
 
 onMounted(() => {

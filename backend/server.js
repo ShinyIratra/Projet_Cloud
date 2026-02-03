@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import roadAlertRoutes from './routes/roadAlertRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import webRoutes from './routes/webRoutes.js';
 
 import swaggerUi from 'swagger-ui-express';
@@ -16,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware CORS
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:8100', 'http://localhost:3000', 'http://localhost'],
+    origin: '*',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -33,6 +34,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api', roadAlertRoutes);
+app.use('/api', notificationRoutes);
 app.use('/api/web', webRoutes);
 
 // Start server
