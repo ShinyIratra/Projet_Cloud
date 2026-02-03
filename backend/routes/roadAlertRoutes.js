@@ -153,10 +153,47 @@ import RoadAlertController from '../controllers/RoadAlertController.js';
  *         description: Erreur serveur
  */
 
+/**
+ * @swagger
+ * /api/mobile/road_alerts:
+ *   post:
+ *     summary: Créer un nouveau signalement routier depuis mobile (simplifié)
+ *     tags: [RoadAlerts]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - UID
+ *               - date_alert
+ *               - lattitude
+ *               - longitude
+ *             properties:
+ *               UID:
+ *                 type: string
+ *               date_alert:
+ *                 type: string
+ *                 format: date-time
+ *               lattitude:
+ *                 type: number
+ *               longitude:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Signalement créé avec succès
+ *       500:
+ *         description: Erreur serveur
+ */
+
 const router = express.Router();
 
-// Route to create a new road alert
+// Route to create a new road alert (web - complete)
 router.post('/road_alerts', RoadAlertController.new_road_alert);
+
+// Route to create a new road alert (mobile - simplified)
+router.post('/mobile/road_alerts', RoadAlertController.new_mobile_road_alert);
 
 // Route to get all road alerts
 router.get('/road_alerts', RoadAlertController.get_all_road_alerts);
