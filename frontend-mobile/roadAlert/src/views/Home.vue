@@ -126,11 +126,18 @@
           <i class="fas fa-map-marker-alt pulse-icon"></i>
           <div>
             <p class="indicator-title">Mode création activé</p>
-            <p class="indicator-text">Touchez la carte pour placer un marqueur</p>
+            <p class="indicator-text">Cliquez n'importe où pour placer le signalement</p>
           </div>
           <button @click="closeCreateMode" class="cancel-btn">
             <i class="fas fa-times"></i>
           </button>
+        </div>
+      </div>
+
+      <!-- MARKER CENTRAL EN MODE CRÉATION -->
+      <div v-if="isCreateMode && !showCreateModal" class="center-marker">
+        <div class="marker-pin-center">
+          <i class="fas fa-map-marker-alt"></i>
         </div>
       </div>
 
@@ -272,9 +279,10 @@ const initMap = () => {
 
   // Gérer les clics sur la carte
   map.on('click', (e: L.LeafletMouseEvent) => {
-    if (isCreateMode.value) {
-      // Mode création : placer un marqueur temporaire
-      placeTempMarker(e.latlng);
+    if (isCreateMode.value && !showCreateModal.value) {
+      // Mode création : utiliser le centre de la carte
+      const center = map!.getCenter();
+      placeTempMarker(center);
     } else {
       // Mode normal : fermer le bottom sheet
       if (isSheetActive.value) closeSheet();
@@ -494,9 +502,7 @@ const placeTempMarker = (latlng: L.LatLng) => {
   tempMarkerLocation.value = { lat: latlng.lat, lng: latlng.lng };
   
   // Ouvrir automatiquement la modal une fois l'emplacement sélectionné
-  setTimeout(() => {
-    showCreateModal.value = true;
-  }, 100);
+  showCreateModal.value = true;
 };
 
 const clearTempMarker = () => {
