@@ -1,44 +1,54 @@
-import { API_URL } from './config';
+// API des notifications - Logique métier locale (sans backend)
+// Utilise Firebase directement depuis le mobile
 
-export interface Notification {
-  id: string;
-  UID: string;
-  roadAlertId: string;
-  oldStatus: string;
-  newStatus: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-}
+import { notificationService, Notification } from '../services/notificationService';
 
+// Ré-export des interfaces pour la compatibilité
+export type { Notification };
+
+/**
+ * Récupérer toutes les notifications d'un utilisateur
+ */
 export const fetchUserNotifications = async (uid: string): Promise<Notification[]> => {
-  const response = await fetch(`${API_URL}/notifications/user/${uid}`);
-  if (!response.ok) throw new Error('Erreur lors du chargement des notifications');
-  const result = await response.json();
-  return result.data || [];
+  return await notificationService.getUserNotifications(uid);
 };
 
+/**
+ * Récupérer les notifications non lues d'un utilisateur
+ */
 export const fetchUnreadNotifications = async (uid: string): Promise<Notification[]> => {
-  const response = await fetch(`${API_URL}/notifications/unread/${uid}`);
-  if (!response.ok) throw new Error('Erreur lors du chargement des notifications non lues');
-  const result = await response.json();
-  return result.data || [];
+  return await notificationService.getUnreadNotifications(uid);
 };
 
+/**
+ * Marquer une notification comme lue
+ */
 export const markNotificationAsRead = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/notifications/read`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id }),
-  });
-  if (!response.ok) throw new Error('Erreur lors du marquage de la notification');
+  await notificationService.markAsRead(id);
 };
 
+/**
+ * Marquer toutes les notifications d'un utilisateur comme lues
+ */
 export const markAllNotificationsAsRead = async (uid: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/notifications/read-all`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ UID: uid }),
-  });
-  if (!response.ok) throw new Error('Erreur lors du marquage des notifications');
+  await notificationService.markAllAsRead(uid);
+};
+
+/**
+ * Compter les notifications non lues
+ */
+export const getUnreadNotificationCount = async (uid: string): Promise<number> => {
+  return await notificationService.getUnreadCount(uid);
+};
+
+/**
+ * Créer une notification (utilitaire)
+ */
+export const createNotification = async (
+  uid: string,
+  roadAlertId: string,
+  oldStatus: string,
+  newStatus: string
+): Promise<Notification> => {
+  return await notificationService.createNotification(uid, roadAlertId, oldStatus, newStatus);
 };

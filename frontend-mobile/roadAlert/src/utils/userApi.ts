@@ -1,37 +1,63 @@
-import { API_URL } from './config';
+// API utilisateurs - Logique métier locale (sans backend)
+// Utilise Firebase directement depuis le mobile
 
-export interface UserStatus {
-  blocked: boolean;
-  attempts?: number;
-  message?: string;
-}
+import { userService, UserStatus, UserData } from '../services/userService';
 
+// Ré-export des interfaces pour la compatibilité
+export type { UserStatus, UserData };
+
+/**
+ * Vérifier si un utilisateur est bloqué
+ */
 export const checkUserBlocked = async (uid: string): Promise<UserStatus> => {
-  const response = await fetch(`${API_URL}/api/users/blocked`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ UID: uid }),
-  });
-  if (!response.ok) throw new Error('Erreur lors de la vérification');
-  return response.json();
+  return await userService.isUserBlocked(uid);
 };
 
-export const getUserAttempts = async (uid: string) => {
-  const response = await fetch(`${API_URL}/api/users/tentative`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ UID: uid }),
-  });
-  if (!response.ok) throw new Error('Erreur lors de la récupération des tentatives');
-  return response.json();
+/**
+ * Récupérer le nombre de tentatives échouées d'un utilisateur
+ */
+export const getUserAttempts = async (uid: string): Promise<{ failed_login_attempt: number }> => {
+  return await userService.getUserAttempts(uid);
 };
 
-export const unblockUser = async (uid: string) => {
-  const response = await fetch(`${API_URL}/api/unblock`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ UID: uid }),
-  });
-  if (!response.ok) throw new Error('Erreur lors du déblocage');
-  return response.json();
+/**
+ * Débloquer un utilisateur
+ */
+export const unblockUser = async (uid: string, managerUid?: string): Promise<void> => {
+  await userService.unblockUser(uid, managerUid);
+};
+
+/**
+ * Récupérer les données d'un utilisateur
+ */
+export const getUserData = async (uid: string): Promise<UserData | null> => {
+  return await userService.getUserData(uid);
+};
+
+/**
+ * Récupérer un utilisateur par email
+ */
+export const getUserByEmail = async (email: string): Promise<UserData | null> => {
+  return await userService.getUserByEmail(email);
+};
+
+/**
+ * Vérifier si l'utilisateur est un manager
+ */
+export const isManager = async (uid: string): Promise<boolean> => {
+  return await userService.isManager(uid);
+};
+
+/**
+ * Récupérer tous les utilisateurs (managers uniquement)
+ */
+export const getAllUsers = async (managerUid: string): Promise<UserData[]> => {
+  return await userService.getAllUsers(managerUid);
+};
+
+/**
+ * Récupérer tous les utilisateurs bloqués (managers uniquement)
+ */
+export const getBlockedUsers = async (managerUid: string): Promise<UserData[]> => {
+  return await userService.getBlockedUsers(managerUid);
 };

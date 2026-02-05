@@ -79,3 +79,4 @@ firebase-debug.log
 # ========== FICHIERS DE TEST ==========
 test.png
 test-*.png
+frontend-mobile/roadAlert/.env.local
