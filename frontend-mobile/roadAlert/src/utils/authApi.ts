@@ -1,87 +1,84 @@
-import { API_URL } from './config';
+// Authentification avec logique métier locale (sans backend)
+// Utilise Firebase directement depuis le mobile
 
-export interface LoginResponse {
-  idToken: string;
-  email: string;
-  refreshToken: string;
-  expiresIn: string;
-}
+import { authService, LoginResponse, RegisterResponse, ApiResponse } from '../services/authService';
 
-export interface ApiResponse<T> {
-  status: 'success' | 'error';
-  data: T | null;
-  message: string;
-}
+// Ré-export des interfaces pour la compatibilité
+export type { LoginResponse, ApiResponse, RegisterResponse };
 
-export interface RegisterResponse {
-  token?: string;
-  user?: {
-    uid: string;
-    email: string;
-  };
-  message?: string;
-}
-
+/**
+ * Connexion utilisateur - Logique métier intégrée localement
+ * Gère les tentatives échouées et le blocage de compte
+ */
 export const loginUser = async (email: string, password: string): Promise<LoginResponse> => {
-  const response = await fetch(`${API_URL}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  
-  const apiResponse: ApiResponse<LoginResponse> = await response.json();
-  
-  if (apiResponse.status === 'error' || !apiResponse.data) {
-    throw new Error(apiResponse.message || 'Erreur de connexion');
-  }
-  
-  return apiResponse.data;
+  return await authService.login(email, password);
 };
 
+/**
+ * Inscription utilisateur - Logique métier intégrée localement
+ * Crée l'utilisateur dans Firebase Auth et Firestore
+ */
 export const registerUser = async (
   email: string, 
   password: string, 
   displayName: string = '',
   type_user: string = 'utilisateur'
-): Promise<RegisterResponse> => {
-  const response = await fetch(`${API_URL}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, displayName, type_user }),
-  });
-  
-  const apiResponse: ApiResponse<{ uid: string }> = await response.json();
-  
-  if (apiResponse.status === 'error') {
-    throw new Error(apiResponse.message || 'Erreur lors de l\'inscription');
-  }
+): Promise<{ user?: { uid: string; email: string }; message?: string }> => {
+  const result = await authService.register(email, password, displayName, type_user);
   
   return {
     user: {
-      uid: apiResponse.data?.uid || '',
-      email: email
+      uid: result.uid,
+      email: result.email
     },
-    message: apiResponse.message
+    message: result.message
   };
 };
 
-export const updateUser = async (uid: string, email?: string, password?: string) => {
-  const updateData: { uid: string; email?: string; password?: string } = { uid };
+/**
+ * Mise à jour utilisateur - Logique métier intégrée localement
+ */
+export const updateUser = async (uid: string, email?: string, password?: string): Promise<ApiResponse<null>> => {
+  await authService.updateEmailAndPassword(uid, email, password);
   
-  if (email) updateData.email = email;
-  if (password) updateData.password = password;
+  return {
+    status: 'success',
+    data: null,
+    message: 'Utilisateur mis à jour avec succès'
+  };
+};
 
-  const response = await fetch(`${API_URL}/update`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updateData),
-  });
-  
-  const apiResponse: ApiResponse<null> = await response.json();
-  
-  if (apiResponse.status === 'error') {
-    throw new Error(apiResponse.message || 'Erreur lors de la mise à jour');
-  }
-  
-  return apiResponse;
+/**
+ * Déconnexion utilisateur
+ */
+export const logoutUser = async (): Promise<void> => {
+  await authService.logout();
+};
+
+/**
+ * Réinitialisation du mot de passe
+ */
+export const resetPassword = async (email: string): Promise<void> => {
+  await authService.resetPassword(email);
+};
+
+/**
+ * Débloquer un utilisateur (managers uniquement)
+ */
+export const unblockUser = async (uid: string, managerUid: string): Promise<void> => {
+  await authService.unblockUser(uid, managerUid);
+};
+
+/**
+ * Récupérer les données utilisateur
+ */
+export const getUserData = async (uid: string) => {
+  return await authService.getUserData(uid);
+};
+
+/**
+ * Récupérer l'utilisateur courant
+ */
+export const getCurrentUser = () => {
+  return authService.getCurrentUser();
 };
