@@ -75,13 +75,10 @@ CREATE TABLE signalements(
    budget NUMERIC(15,2)   NOT NULL,
    position GEOGRAPHY(POINT, 4326) NOT NULL,
    date_signalement TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-   Id_statut_signalement INTEGER,
    Id_entreprise INTEGER,
    Id_users INTEGER NOT NULL,
    id_firebase VARCHAR(255) UNIQUE,
    PRIMARY KEY(Id_signalements),
-   FOREIGN KEY(Id_statut_signalement) REFERENCES statut_signalement(Id_statut_signalement),
    FOREIGN KEY(Id_entreprise) REFERENCES entreprise(Id_entreprise),
    FOREIGN KEY(Id_users) REFERENCES users(Id_users)
 );
@@ -92,6 +89,16 @@ CREATE TABLE photos_signalements(
    Id_signalements INTEGER,
    PRIMARY KEY(Id_photos_signalements),
    FOREIGN KEY(Id_signalements) REFERENCES signalements(Id_signalements)
+);
+
+CREATE TABLE Historique_StatutSignalements(
+   Id_Historique_StatutSignalements SERIAL,
+   update_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   Id_signalements INTEGER NOT NULL,
+   Id_statut_signalement INTEGER NOT NULL,
+   PRIMARY KEY(Id_Historique_StatutSignalements),
+   FOREIGN KEY(Id_signalements) REFERENCES signalements(Id_signalements),
+   FOREIGN KEY(Id_statut_signalement) REFERENCES statut_signalement(Id_statut_signalement)
 );
 
 
