@@ -6,101 +6,105 @@
 
       <!-- TOP NAVIGATION & SEARCH -->
       <div class="floating-search space-y-3">
-        <div class="glass-morphism rounded-2xl p-2 flex items-center shadow-lg border border-white">
+        <div class="glass-search-bar">
+          <div class="search-icon-wrapper">
+             <i class="fas fa-search"></i>
+          </div>
           <input 
             v-model="searchQuery"
             type="text" 
             placeholder="Rechercher à Antananarivo..." 
-            class="flex-grow bg-transparent border-none focus:ring-0 text-sm font-semibold px-2 text-slate-700 placeholder-slate-400"
+            class="search-input"
           />
-          <!-- Bouton Notifications -->
-          <button 
-            v-if="isUserConnected"
-            @click="toggleNotifications"
-            class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-slate-100 transition-all relative mr-2"
-          >
-            <i class="fas fa-bell text-slate-600"></i>
-            <span v-if="unreadNotificationsCount > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-              {{ unreadNotificationsCount }}
-            </span>
-          </button>
           
-          <div class="relative">
-            <!-- Avatar par défaut si non connecté -->
-            <div 
-              v-if="!isUserConnected"
-              @click="router.push('/login')"
-              class="w-10 h-10 rounded-full overflow-hidden bg-slate-200 cursor-pointer hover:ring-2 hover:ring-slate-300 transition-all flex items-center justify-center"
+          <div class="search-actions">
+            <!-- Bouton Notifications -->
+            <button 
+              v-if="isUserConnected"
+              @click="toggleNotifications"
+              class="icon-btn notification-btn"
             >
-              <i class="fas fa-user text-slate-400 text-sm"></i>
-            </div>
+              <i class="fas fa-bell"></i>
+              <span v-if="unreadNotificationsCount > 0" class="badge">
+                {{ unreadNotificationsCount }}
+              </span>
+            </button>
             
-            <!-- Avatar si connecté -->
-            <div 
-              v-else
-              class="w-10 h-10 rounded-full overflow-hidden bg-blue-100 cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-              @click="toggleUserMenu"
-            >
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
-            </div>
-            
-            <!-- User Menu Dropdown -->
-            <transition name="fade-slide">
+            <div class="user-menu-container">
+              <!-- Avatar par défaut si non connecté -->
               <div 
-                v-if="showUserMenu" 
-                class="user-menu-dropdown"
+                v-if="!isUserConnected"
+                @click="router.push('/login')"
+                class="avatar-placeholder"
               >
-                <div class="user-menu-header">
-                  <div class="w-12 h-12 rounded-full overflow-hidden bg-blue-100 mb-2">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
-                  </div>
-                  <p class="user-name">{{ userName }}</p>
-                  <p class="user-email">{{ userEmail }}</p>
-                </div>
-                <div class="user-menu-divider"></div>
-                <button class="user-menu-item" @click="handleProfile">
-                  <i class="fas fa-user"></i>
-                  <span>Mon profil</span>
-                </button>
-                <button class="user-menu-item" @click="handleSettings">
-                  <i class="fas fa-cog"></i>
-                  <span>Paramètres</span>
-                </button>
-                <div class="user-menu-divider"></div>
-                <button class="user-menu-item logout" @click="handleLogout">
-                  <i class="fas fa-sign-out-alt"></i>
-                  <span>Se déconnecter</span>
-                </button>
+                <i class="fas fa-user"></i>
               </div>
-            </transition>
-          </div>
+              
+              <!-- Avatar si connecté -->
+              <div 
+                v-else
+                class="user-avatar"
+                @click="toggleUserMenu"
+              >
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+              </div>
+              
+              <!-- User Menu Dropdown -->
+              <transition name="fade-slide">
+                <div 
+                  v-if="showUserMenu" 
+                  class="user-menu-dropdown"
+                >
+                  <div class="user-menu-header">
+                    <div class="w-12 h-12 rounded-full overflow-hidden bg-blue-100 mb-2">
+                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+                    </div>
+                    <p class="user-name">{{ userName }}</p>
+                    <p class="user-email">{{ userEmail }}</p>
+                  </div>
+                  <div class="user-menu-divider"></div>
+                  <button class="user-menu-item" @click="handleProfile">
+                    <i class="fas fa-user"></i>
+                    <span>Mon profil</span>
+                  </button>
+                  <button class="user-menu-item" @click="handleSettings">
+                    <i class="fas fa-cog"></i>
+                    <span>Paramètres</span>
+                  </button>
+                  <div class="user-menu-divider"></div>
+                  <button class="user-menu-item logout" @click="handleLogout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Se déconnecter</span>
+                  </button>
+                </div>
+              </transition>
+            </div>
         </div>
+      </div>
         
         <!-- Quick Filters -->
-        <div class="flex space-x-2 overflow-x-auto pb-2 no-scrollbar" style="padding-left: 0; padding-right: 80px;">
+        <div class="filter-scroll-container">
           <button 
             v-for="filter in filters" 
             :key="filter.value"
             @click="activeFilter = filter.value"
             :class="[
-              'px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider whitespace-nowrap shadow-sm transition-all',
-              activeFilter === filter.value 
-                ? 'bg-slate-700 text-white' 
-                : 'glass-morphism text-slate-600 border border-white hover:bg-white/90'
+              'filter-chip',
+              activeFilter === filter.value ? 'active' : ''
             ]"
           >
-            <i :class="`fas ${filter.icon} mr-1`"></i> {{ filter.label }}
+            <i :class="`fas ${filter.icon}`"></i> {{ filter.label }}
           </button>
         </div>
       </div>
 
       <!-- FLOATING ACTIONS (Right side) -->
-      <div class="fixed right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col space-y-3">
-        <button class="action-button bg-white text-slate-700 hover:bg-slate-50" @click="centerMap">
-          <i class="fas fa-crosshairs text-lg"></i>
+      <div class="side-floating-actions">
+        <button class="action-button glass-btn" @click="centerMap">
+          <i class="fas fa-crosshairs"></i>
         </button>
-        <button class="action-button bg-blue-600 text-white hover:bg-blue-700" @click="handleAddAlert">
-          <i class="fas fa-plus text-lg"></i>
+        <button class="action-button primary-btn" @click="handleAddAlert">
+          <i class="fas fa-plus"></i>
         </button>
       </div>
 
@@ -208,10 +212,12 @@ const filters = [
   { value: 'termine', label: 'Terminés', icon: 'fa-check-circle' },
 ];
 
-const isUserConnected = computed(() => {
+const isUserConnected = ref(false);
+
+const checkUserConnection = () => {
   const token = localStorage.getItem('authToken');
-  return !!token;
-});
+  isUserConnected.value = !!token;
+};
 
 const filteredAlerts = computed(() => {
   let alerts = roadAlerts.value;
@@ -236,7 +242,13 @@ const filteredAlerts = computed(() => {
   return alerts;
 });
 
-onIonViewDidEnter(() => {
+onIonViewDidEnter(async () => {
+  checkUserConnection();
+  if (isUserConnected.value) {
+    loadUserInfo();
+    await loadUnreadNotificationsCount();
+  }
+
   if (map) {
     // Forcer le recalcul de la taille de la carte
     setTimeout(() => {
@@ -328,9 +340,23 @@ const updateMarkers = () => {
       return;
     }
 
+    // Déterminer le style en fonction du statut
+    const status = (alert.Statut || alert.status || 'nouveau').toLowerCase();
+    
+    let statusClass = 'nouveau'; // Rouge par défaut
+    let iconClass = 'fa-exclamation';
+
+    if (status.includes('cours')) {
+      statusClass = 'en-cours'; // Orange
+      iconClass = 'fa-tools';
+    } else if (status.includes('termin') || status.includes('clotur')) {
+      statusClass = 'termine'; // Vert
+      iconClass = 'fa-check';
+    }
+
     const icon = L.divIcon({
       className: 'custom-icon',
-      html: `<div class="marker-pin"><i class="fas fa-hammer"></i></div>`,
+      html: `<div class="marker-pin ${statusClass}"><i class="fas ${iconClass}"></i></div>`,
       iconSize: [30, 30],
       iconAnchor: [15, 30],
     });
@@ -545,3 +571,281 @@ onUnmounted(() => {
   }
 });
 </script>
+
+<style scoped>
+/* Top Floating Search Bar */
+.floating-search {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 400px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.glass-search-bar {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 30px;
+  padding: 8px 12px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  position: relative;
+  z-index: 20; 
+}
+
+.search-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #8E8E93;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1c1c1e;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: #8E8E93;
+}
+
+.search-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1c1c1e;
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.icon-btn:hover, .icon-btn:active {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.notification-btn i {
+  font-size: 1.3rem;
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background-color: #ff3b30;
+  color: white;
+  border-radius: 9px;
+  border: 2px solid white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 5;
+}
+
+.user-menu-container {
+  position: relative;
+  z-index: 50; /* Ensure it's above other elements in the search bar */
+}
+
+/* User Avatar */
+.avatar-placeholder, .user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-placeholder {
+  background: #E5E5EA;
+  color: #8E8E93;
+}
+
+.user-avatar {
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Filter Chips with Horizontal Scroll */
+.filter-scroll-container {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 10px 2px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  position: relative;
+  z-index: 10;
+}
+
+.filter-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: none;
+  
+  /* Glass Morphism */
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
+  color: #48484a;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.filter-chip i {
+  font-size: 12px;
+}
+
+.filter-chip.active {
+  background: #007AFF; /* Apple Blue */
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Floating Action Buttons */
+.side-floating-actions {
+  position: fixed;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 900;
+}
+
+.action-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.action-button:active {
+  transform: scale(0.9);
+}
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  color: #1c1c1e;
+}
+
+.primary-btn {
+  background: #007AFF;
+  color: white;
+}
+
+/* User Menu Dropdown Adjustment */
+.user-menu-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 240px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  padding: 16px;
+  z-index: 9999;
+  transform-origin: top right;
+  overflow: hidden;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .glass-search-bar, .user-menu-dropdown {
+    background: rgba(30, 30, 30, 0.95);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+  
+  .search-input {
+    color: white;
+  }
+  
+  .search-input::placeholder, .icon-btn {
+    color: #98989d;
+  }
+  
+  .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .filter-chip {
+    background: rgba(40, 40, 40, 0.65);
+    color: #ebebf5;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  
+  .glass-btn {
+    background: rgba(40, 40, 40, 0.8);
+    color: white;
+  }
+  
+  .badge {
+    border-color: #1c1c1e;
+  }
+}
+</style>

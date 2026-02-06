@@ -133,15 +133,33 @@
 .marker-pin {
   width: 34px;
   height: 34px;
-  background: #3b82f6;
+  background: #3b82f6; /* Default Blue */
   border: 3px solid white;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 10px rgba(0,0,0, 0.2);
   cursor: pointer;
+}
+
+/* Statut: Nouveau (Rouge pour l'urgence) */
+.marker-pin.nouveau {
+  background: #ff3b30;
+  box-shadow: 0 4px 10px rgba(255, 59, 48, 0.4);
+}
+
+/* Statut: En cours (Orange pour les travaux) */
+.marker-pin.en-cours {
+  background: #ff9500;
+  box-shadow: 0 4px 10px rgba(255, 149, 0, 0.4);
+}
+
+/* Statut: Terminé (Vert pour validé) */
+.marker-pin.termine {
+  background: #34c759;
+  box-shadow: 0 4px 10px rgba(52, 199, 89, 0.4);
 }
 
 .marker-pin i {
