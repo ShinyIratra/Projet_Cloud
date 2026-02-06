@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistiques & Performance — RoadAlert</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b; 
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .card {
+            background: white;
+            border-radius: 28px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+
+        .kpi-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            letter-spacing: -0.05em;
+        }
+    </style>
+</head>
+<body class="pb-32">
+
+    <!-- NAVBAR -->
+    <nav class="glass-nav fixed top-0 w-full z-50 h-16 flex items-center justify-between px-6 md:px-12">
+        <div class="flex items-center space-x-4">
+            <div class="text-xl font-extrabold tracking-tight">
+                Road<span class="text-blue-600">Alert</span>
+            </div>
+            <span class="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md uppercase">Manager</span>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <div class="text-right hidden sm:block">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Connecté</p>
+                <p class="text-xs font-black text-slate-800">Manager</p>
+            </div>
+            <div class="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Manager" alt="profile">
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="pt-24 px-4 md:px-12 max-w-7xl mx-auto">
+        
+        <!-- HEADER -->
+        <div class="mb-10">
+            <h1 class="text-3xl font-black text-slate-900 tracking-tight">Performance du Traitement</h1>
+            <p class="text-slate-500 font-medium">Analyse des délais entre chaque étape (Nouveau → En cours → Terminé).</p>
+        </div>
+
+        <!-- 1. KPIs (Sans bordures colorées) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            
+            <!-- PHASE 1 : Nouveau -> En Cours -->
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Phase 1 : Réactivité</p>
+                    <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                        <i class="fas fa-stopwatch text-blue-500 text-sm"></i>
+                    </div>
+                </div>
+                <div class="text-xs font-bold text-slate-500 mb-2">Nouveau <i class="fas fa-arrow-right mx-1 text-[8px]"></i> En cours</div>
+                <h2 class="text-4xl kpi-value text-slate-800">4.5 <span class="text-lg text-slate-400">Jours</span></h2>
+                <p class="text-[10px] text-slate-400 font-bold mt-2">Moyenne calculée</p>
+            </div>
+
+            <!-- PHASE 2 : En Cours -> Terminé -->
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Phase 2 : Exécution</p>
+                    <div class="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center">
+                        <i class="fas fa-tools text-green-500 text-sm"></i>
+                    </div>
+                </div>
+                <div class="text-xs font-bold text-slate-500 mb-2">En cours <i class="fas fa-arrow-right mx-1 text-[8px]"></i> Terminé</div>
+                <h2 class="text-4xl kpi-value text-slate-800">7.0 <span class="text-lg text-slate-400">Jours</span></h2>
+                <p class="text-[10px] text-slate-400 font-bold mt-2">Basé sur Tunnel d'Ambanidia</p>
+            </div>
+
+            <!-- TOTAL -->
+            <div class="card p-6 bg-slate-900 text-white border-slate-800">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cycle Total</p>
+                    <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                        <i class="fas fa-chart-line text-blue-400 text-sm"></i>
+                    </div>
+                </div>
+                <div class="text-xs font-bold text-slate-400 mb-2">Signalement <i class="fas fa-arrow-right mx-1 text-[8px]"></i> Livraison</div>
+                <h2 class="text-4xl kpi-value text-white">11.5 <span class="text-lg text-slate-500">Jours</span></h2>
+                <p class="text-[10px] text-slate-500 font-bold mt-2">Temps de traitement moyen</p>
+            </div>
+        </div>
+
+        <!-- 2. GRAPHIQUE (Pleine largeur, sans Analyse IA) -->
+        <div class="card p-8 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-bold text-slate-800">Répartition du temps par chantier</h3>
+                <div class="flex space-x-4 text-[10px] font-bold uppercase">
+                    <div class="flex items-center"><span class="w-3 h-3 bg-blue-200 rounded-full mr-2"></span>Attente (Phase 1)</div>
+                    <div class="flex items-center"><span class="w-3 h-3 bg-blue-600 rounded-full mr-2"></span>Travaux (Phase 2)</div>
+                </div>
+            </div>
+            <!-- Container du Canvas -->
+            <div class="relative h-72 w-full">
+                <canvas id="timeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 3. TABLEAU DÉTAILLÉ -->
+        <div class="card overflow-hidden">
+            <div class="px-8 py-5 border-b border-slate-100 bg-white">
+                <h3 class="font-bold text-slate-800">Détails des calculs</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                            <th class="px-8 py-4">Chantier</th>
+                            <th class="px-8 py-4">Dates Clés</th>
+                            <th class="px-8 py-4 text-center text-blue-600">Phase 1<br>(Attente)</th>
+                            <th class="px-8 py-4 text-center text-green-600">Phase 2<br>(Travaux)</th>
+                            <th class="px-8 py-4 text-center">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        
+                        <!-- LIGNE 1 : Tunnel d'Ambanidia -->
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-8 py-4 font-bold text-slate-800">Tunnel d'Ambanidia</td>
+                            <td class="px-8 py-4 text-xs font-mono text-slate-500">
+                                01/02 <i class="fas fa-arrow-right mx-1"></i> 05/02 <i class="fas fa-arrow-right mx-1"></i> 12/02
+                            </td>
+                            <td class="px-8 py-4 text-center font-bold text-blue-600 bg-blue-50/50">4 Jours</td>
+                            <td class="px-8 py-4 text-center font-bold text-green-600 bg-green-50/50">7 Jours</td>
+                            <td class="px-8 py-4 text-center font-black text-slate-800">11 Jours</td>
+                        </tr>
+
+                        <!-- LIGNE 2 : Route-digue -->
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-8 py-4 font-bold text-slate-800">Route-digue</td>
+                            <td class="px-8 py-4 text-xs font-mono text-slate-500">
+                                15/01 <i class="fas fa-arrow-right mx-1"></i> 20/01 <i class="fas fa-arrow-right mx-1"></i> ...
+                            </td>
+                            <td class="px-8 py-4 text-center font-bold text-blue-600 bg-blue-50/50">5 Jours</td>
+                            <td class="px-8 py-4 text-center italic text-slate-400">En cours</td>
+                            <td class="px-8 py-4 text-center italic text-slate-400">--</td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER NAV -->
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl px-8 py-4 rounded-full shadow-2xl flex items-center space-x-10 z-50 border border-slate-200">
+        <a href="home.html"><i class="fas fa-home text-slate-400 text-lg hover:text-blue-600 transition"></i></a>
+        <a href="management.html"><i class="fas fa-tasks text-slate-400 text-lg hover:text-blue-600 transition"></i></a>
+        <i class="fas fa-plus-circle text-slate-300 text-2xl cursor-not-allowed"></i>
+        <i class="fas fa-chart-line text-blue-600 text-xl"></i> <!-- Active -->
+        <i class="fas fa-cog text-slate-400 hover:text-blue-600 text-lg cursor-pointer transition"></i>
+    </div>
+
+    <!-- SCRIPT CHART.JS -->
+    <script>
+        const ctx = document.getElementById('timeChart').getContext('2d');
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Tunnel Ambanidia', 'Route-digue'],
+                datasets: [
+                    {
+                        label: 'Délai Mise en route (Phase 1)',
+                        data: [4, 5],
+                        backgroundColor: '#bfdbfe', // blue-200
+                        borderRadius: 6,
+                        barThickness: 60
+                    },
+                    {
+                        label: 'Durée Travaux (Phase 2)',
+                        data: [7, 20], // 20 est une estimation visuelle pour Route-digue
+                        backgroundColor: '#2563eb', // blue-600
+                        borderRadius: 6,
+                        barThickness: 60
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        padding: 12,
+                        titleFont: { family: 'Plus Jakarta Sans' },
+                        bodyFont: { family: 'Plus Jakarta Sans' }
+                    }
+                },
+                scales: {
+                    x: { 
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { font: { family: 'Plus Jakarta Sans', weight: '600' } }
+                    },
+                    y: { 
+                        stacked: true,
+                        beginAtZero: true,
+                        grid: { borderDash: [4, 4], color: '#f1f5f9' },
+                        title: { display: true, text: 'Jours', font: { size: 10, weight: 'bold' } }
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
