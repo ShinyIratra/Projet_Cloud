@@ -108,17 +108,18 @@ const webAuthController = {
     },
 
     async unblockUser(req, res) {
-        const { userId, managerId } = req.body;
+        const { userId } = req.body;
 
         try {
-            const managerCheck = await query(`
-                SELECT tu.label FROM users u
-                JOIN type_user tu ON u.Id_type_user = tu.Id_type_user
-                WHERE u.Id_users = $1
-            `, [managerId]);
+            // Le manager est déjà vérifié via le middleware isManager
+            // Vérifier que l'utilisateur existe
+            const userCheck = await query(
+                'SELECT Id_users FROM users WHERE Id_users = $1',
+                [userId]
+            );
 
-            if (managerCheck.rows[0]?.label !== 'manager') {
-                return res.status(403).json(new ApiModel('error', null, 'Acces refuse. Manager requis.'));
+            if (userCheck.rows.length === 0) {
+                return res.status(404).json(new ApiModel('error', null, 'Utilisateur non trouve'));
             }
 
             await query(`
@@ -143,6 +144,68 @@ const webAuthController = {
                 AND us.update_at = (SELECT MAX(update_at) FROM users_status WHERE Id_users = u.Id_users)
             `);
             res.json(new ApiModel('success', result.rows, null));
+        } catch (error) {
+            res.status(500).json(new ApiModel('error', null, error.message));
+        }
+    },
+
+    // Modifier les informations d'un utilisateur
+    async updateUserInfo(req, res) {
+        const { username, email, password } = req.body;
+        const userId = req.user.id; // ID de l'utilisateur connecté
+
+        try {
+            // Vérifier si l'email existe déjà pour un autre utilisateur
+            if (email) {
+                const emailCheck = await query(
+                    'SELECT Id_users FROM users WHERE email = $1 AND Id_users != $2',
+                    [email, userId]
+                );
+                if (emailCheck.rows.length > 0) {
+                    return res.status(400).json(new ApiModel('error', null, 'Email deja utilise par un autre utilisateur'));
+                }
+            }
+
+            // Construire la requête de mise à jour dynamiquement
+            const updates = [];
+            const values = [];
+            let paramIndex = 1;
+
+            if (username) {
+                updates.push(`username = $${paramIndex}`);
+                values.push(username);
+                paramIndex++;
+            }
+            if (email) {
+                updates.push(`email = $${paramIndex}`);
+                values.push(email);
+                paramIndex++;
+            }
+            if (password) {
+                updates.push(`password = $${paramIndex}`);
+                values.push(password);
+                paramIndex++;
+            }
+
+            if (updates.length === 0) {
+                return res.status(400).json(new ApiModel('error', null, 'Aucune information a modifier'));
+            }
+
+            values.push(userId);
+            const updateQuery = `
+                UPDATE users 
+                SET ${updates.join(', ')}
+                WHERE Id_users = $${paramIndex}
+                RETURNING Id_users, username, email
+            `;
+
+            const result = await query(updateQuery, values);
+
+            if (result.rows.length === 0) {
+                return res.status(404).json(new ApiModel('error', null, 'Utilisateur non trouve'));
+            }
+
+            res.json(new ApiModel('success', result.rows[0], 'Informations modifiees avec succes'));
         } catch (error) {
             res.status(500).json(new ApiModel('error', null, error.message));
         }

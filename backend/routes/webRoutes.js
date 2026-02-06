@@ -10,7 +10,7 @@ const router = express.Router();
  * @swagger
  * tags:
  *   - name: Web Auth
- *     description: Authentification web via Firebase
+ *     description: Authentification web via PostgreSQL (base locale)
  *   - name: Web Signalements
  *     description: Gestion des signalements via interface web
  *   - name: Synchronisation
@@ -158,6 +158,42 @@ router.post('/unblock', verifyToken, isManager, webAuthController.unblockUser);
  *         description: Accès refusé (pas manager)
  */
 router.get('/users/blocked', verifyToken, isManager, webAuthController.getBlockedUsers);
+
+/**
+ * @swagger
+ * /api/web/user/update:
+ *   put:
+ *     summary: Modifier les informations de l'utilisateur connecté
+ *     tags: [Web Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: Jean Dupont
+ *               email:
+ *                 type: string
+ *                 example: nouveau-email@example.com
+ *               password:
+ *                 type: string
+ *                 example: nouveauMotDePasse123
+ *     responses:
+ *       200:
+ *         description: Informations modifiées avec succès
+ *       400:
+ *         description: Données invalides
+ *       401:
+ *         description: Non authentifié
+ *       404:
+ *         description: Utilisateur non trouvé
+ */
+router.put('/user/update', verifyToken, webAuthController.updateUserInfo);
 
 // Signalements
 /**
