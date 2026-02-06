@@ -1,10 +1,11 @@
 <template>
   <ion-page class="login-page">
     <ion-content fullscreen class="login-content">
-      <canvas ref="canvasRef" class="login-canvas" />
-      <div class="login-wrapper">
-        <main class="card">
-          <div class="logo" aria-hidden>●</div>
+      <div class="login-centering-container">
+        <canvas ref="canvasRef" class="login-canvas" />
+        <div class="login-wrapper">
+          <main class="card">
+            <div class="logo" aria-hidden>●</div>
           <h1>Identifiant</h1>
           <p class="subtitle">Entrer vos identifiants</p>
 
@@ -45,6 +46,7 @@
           <p>Données et confidentialité</p>
         </footer>
       </div>
+    </div>
     </ion-content>
   </ion-page>
 </template>

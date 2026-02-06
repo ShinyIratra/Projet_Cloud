@@ -46,6 +46,15 @@
   padding: 0;
 }
 
+.login-centering-container {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
 .login-canvas {
   position: fixed;
   top: 0;
@@ -61,7 +70,6 @@
   width: 100%;
   max-width: 400px;
   padding: 20px;
-  margin: 0 auto;
   animation: fadeIn 0.8s ease-out;
   display: flex;
   flex-direction: column;
