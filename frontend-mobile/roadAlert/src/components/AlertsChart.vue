@@ -158,7 +158,7 @@ const chartOptions: ChartOptions<'line'> = {
     tooltip: {
       backgroundColor: '#1e293b',
       padding: 12,
-      borderRadius: 8,
+      cornerRadius: 8,
       titleColor: '#f1f5f9',
       bodyColor: '#f1f5f9',
       displayColors: false,
@@ -177,7 +177,7 @@ const chartOptions: ChartOptions<'line'> = {
       ticks: {
         font: {
           size: 10,
-          weight: '600',
+          weight: 600,
         },
         color: '#94a3b8',
       },
@@ -189,7 +189,7 @@ const chartOptions: ChartOptions<'line'> = {
       ticks: {
         font: {
           size: 10,
-          weight: '600',
+          weight: 600,
         },
         color: '#94a3b8',
       },

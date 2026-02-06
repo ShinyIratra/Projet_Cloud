@@ -199,6 +199,25 @@ const Management: React.FC = () => {
             </div>
             <span className="manager-badge">Console Manager</span>
           </div>
+          <div className="nav-links" style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              onClick={() => history.push('/home')} 
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: 'transparent', color: '#64748b', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Dashboard
+            </button>
+            <button 
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: '#3b82f6', color: 'white', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Signalements
+            </button>
+            <button 
+              onClick={() => history.push('/performance')} 
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: '#10b981', color: 'white', fontWeight: 600, cursor: 'pointer' }}
+            >
+              📊 Performance
+            </button>
+          </div>
           <div className="navbar-right">
             <div className="profile-info">
               <p className="profile-label">Connecté en tant que</p>

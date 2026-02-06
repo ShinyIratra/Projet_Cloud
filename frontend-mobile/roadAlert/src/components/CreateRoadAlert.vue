@@ -44,6 +44,13 @@
                     </div>
                 </div>
 
+                <!-- 2. PHOTOS -->
+                <PhotoUpload 
+                  v-model="photos" 
+                  :maxPhotos="5"
+                  ref="photoUploadRef"
+                />
+
             </div>
 
             <!-- SUBMIT BUTTON -->
@@ -72,6 +79,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { createMobileRoadAlert } from '../utils/roadAlertApi';
+import PhotoUpload, { PhotoData } from './PhotoUpload.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -86,6 +94,8 @@ const emit = defineEmits<{
 
 const isSubmitting = ref(false);
 const showSuccess = ref(false);
+const photos = ref<PhotoData[]>([]);
+const photoUploadRef = ref<InstanceType<typeof PhotoUpload> | null>(null);
 
 const formData = ref({
   date_alert: new Date().toISOString().split('T')[0]
@@ -123,11 +133,15 @@ const handleSubmit = async () => {
   
   isSubmitting.value = true;
   try {
+    // Récupérer les photos en base64
+    const photosBase64 = photoUploadRef.value?.getPhotosBase64() || [];
+
     const payload = {
       UID: userUID,
       date_alert: formData.value.date_alert,
       lattitude: props.selectedLocation.lat,
       longitude: props.selectedLocation.lng,
+      photos: photosBase64
     };
 
     await createMobileRoadAlert(payload);
@@ -143,6 +157,7 @@ const handleSubmit = async () => {
         formData.value = {
             date_alert: new Date().toISOString().split('T')[0]
         };
+        photos.value = [];
     }, 2000);
     
   } catch (error) {

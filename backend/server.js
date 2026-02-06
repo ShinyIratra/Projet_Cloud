@@ -6,6 +6,7 @@ import userRoutes from './routes/userRoutes.js';
 import roadAlertRoutes from './routes/roadAlertRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import webRoutes from './routes/webRoutes.js';
+import taskRoutes from './routes/taskRoutes.js';
 
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpecs from './config/swagger.js';
@@ -35,6 +36,7 @@ app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api', roadAlertRoutes);
 app.use('/api', notificationRoutes);
+app.use('/api', taskRoutes);
 app.use('/api/web', webRoutes);
 
 // Start server

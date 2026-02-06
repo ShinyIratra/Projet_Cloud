@@ -163,6 +163,7 @@ import { IonContent, IonPage, IonSpinner, onIonViewDidEnter, onIonViewWillLeave 
 import { useRouter } from 'vue-router';
 import { fetchRoadAlerts, type RoadAlert } from '../utils/roadAlertApi';
 import { fetchUnreadNotifications, type Notification } from '../utils/notificationApi';
+import { useNotifications } from '../utils/useNotifications';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './Home.css';
@@ -172,6 +173,33 @@ import BottomNavBar from '../components/BottomNavBar.vue';
 import NotificationsPanel from '../components/NotificationsPanel.vue';
 
 const router = useRouter();
+
+// Initialiser les notifications push
+const { 
+  isSupported: pushSupported, 
+  initialize: initPush, 
+  lastNotification: pushNotification,
+  notificationCount: pushNotificationCount
+} = useNotifications({
+  onNotification: (notification) => {
+    console.log('Notification push reçue:', notification);
+    // Rafraîchir le compteur
+    loadUnreadNotificationsCount();
+    // Afficher un toast ou une alerte si nécessaire
+  },
+  onTap: (notification) => {
+    console.log('Notification push tapée:', notification);
+    // Naviguer vers le signalement concerné
+    if (notification.signalementId) {
+      const alert = roadAlerts.value.find(a => a.id === notification.signalementId);
+      if (alert) {
+        openSheet(alert);
+      }
+    }
+    loadUnreadNotificationsCount();
+  }
+});
+
 const mapContainer = ref<HTMLElement | null>(null);
 const searchQuery = ref('');
 const isSheetActive = ref(false);
@@ -297,7 +325,6 @@ const loadRoadAlerts = async () => {
 };
 
 // Watcher pour mettre à jour les marqueurs quand les filtres changent
-import { watch } from 'vue';
 watch([activeFilter, searchQuery], () => {
   updateMarkers();
 });
@@ -522,6 +549,12 @@ onMounted(async () => {
   // Charger les notifications si l'utilisateur est connecté
   if (isUserConnected.value) {
     await loadUnreadNotificationsCount();
+    
+    // Initialiser les notifications push Firebase
+    if (pushSupported.value) {
+      await initPush(userUID.value);
+      console.log('Notifications push initialisées');
+    }
     
     // Rafraîchir les notifications toutes les 30 secondes
     setInterval(() => {
