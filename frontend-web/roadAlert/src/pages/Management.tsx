@@ -5,6 +5,13 @@ import { api, Signalement } from '../utils/api';
 import './Management.css';
 
 type FilterType = 'all' | 'new' | 'progress';
+type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface Toast {
+  show: boolean;
+  message: string;
+  type: ToastType;
+}
 
 const Management: React.FC = () => {
   const [alerts, setAlerts] = useState<Signalement[]>([]);
@@ -13,8 +20,7 @@ const Management: React.FC = () => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [editingAlert, setEditingAlert] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Signalement>>({});
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
   const [showAddModal, setShowAddModal] = useState(false);
   const [newSignalement, setNewSignalement] = useState<Partial<Signalement>>({
     surface: undefined,
@@ -27,6 +33,22 @@ const Management: React.FC = () => {
   const [entreprises, setEntreprises] = useState<{id: number, nom: string}[]>([]);
   const history = useHistory();
 
+  // Helper pour afficher les toasts
+  const showToast = (message: string, type: ToastType = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  // Mapping couleurs pour les toasts
+  const getToastColor = (type: ToastType): string => {
+    switch (type) {
+      case 'success': return 'success';
+      case 'error': return 'danger';
+      case 'warning': return 'warning';
+      case 'info': return 'primary';
+      default: return 'medium';
+    }
+  };
+
   // Vérifier les permissions au chargement
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -36,8 +58,8 @@ const Management: React.FC = () => {
     }
     const user = JSON.parse(storedUser);
     if (user.type_user?.toLowerCase() !== 'manager') {
-      alert(' Accès refusé : Cette page est réservée aux managers');
-      history.push('/home');
+      showToast('Accès refusé : Cette page est réservée aux managers', 'error');
+      setTimeout(() => history.push('/home'), 2000);
       return;
     }
   }, [history]);
@@ -67,6 +89,7 @@ const Management: React.FC = () => {
       setAlerts(data);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
+      showToast('Erreur lors du chargement des signalements', 'error');
     } finally {
       setLoading(false);
     }
@@ -75,7 +98,7 @@ const Management: React.FC = () => {
   const filterAlerts = () => {
     let filtered = alerts;
     if (filter === 'new') {
-      filtered = alerts.filter(a => a.status?.toLowerCase().includes('nouveau'));
+      filtered = alerts.filter(a => !a.status || a.status?.toLowerCase().includes('nouveau'));
     } else if (filter === 'progress') {
       filtered = alerts.filter(a => a.status?.toLowerCase().includes('cours'));
     }
@@ -84,13 +107,17 @@ const Management: React.FC = () => {
 
   const handleStatusChange = async (alertId: number, newStatus: string) => {
     try {
-      await api.updateStatus(alertId, newStatus === 'En cours' ? 'en_cours' : 'termine');
-      setToastMessage('Statut mis à jour avec succès');
-      setShowToast(true);
+      const statusCode = newStatus === 'En cours' ? 'en_cours' : 'termine';
+      await api.updateStatus(alertId, statusCode);
+      
+      if (newStatus === 'En cours') {
+        showToast(' Les travaux ont démarré !', 'info');
+      } else {
+        showToast(' Signalement marqué comme terminé !', 'success');
+      }
       await loadAlerts();
-    } catch (error) {
-      setToastMessage('Erreur lors de la mise à jour');
-      setShowToast(true);
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la mise à jour du statut', 'error');
     }
   };
 
@@ -105,34 +132,45 @@ const Management: React.FC = () => {
   };
 
   const saveChanges = async () => {
-    if (!editingAlert || !editForm.id) return;
+    if (!editingAlert || !editForm.id) {
+      showToast('Données invalides', 'error');
+      return;
+    }
     
     try {
       await api.updateSignalement(editForm.id, editForm);
-      setToastMessage('Signalement mis à jour avec succès');
-      setShowToast(true);
+      showToast(' Signalement mis à jour avec succès !', 'success');
       setEditingAlert(null);
       setEditForm({});
       await loadAlerts();
-    } catch (error) {
-      setToastMessage('Erreur lors de la mise à jour');
-      setShowToast(true);
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la mise à jour', 'error');
     }
   };
 
   const createSignalement = async () => {
     try {
-      if (!newSignalement.lattitude || !newSignalement.longitude || !newSignalement.surface) {
-        setToastMessage('Veuillez remplir tous les champs obligatoires');
-        setShowToast(true);
+      // Validation des champs
+      if (!newSignalement.surface || newSignalement.surface <= 0) {
+        showToast('⚠️ La surface doit être supérieure à 0', 'warning');
         return;
+      }
+
+      if (!newSignalement.lattitude || !newSignalement.longitude) {
+        showToast('⚠️ Veuillez renseigner les coordonnées GPS', 'warning');
+        return;
+      }
+
+      // Vérifier que les coordonnées sont valides (Madagascar approximativement)
+      if (newSignalement.lattitude < -26 || newSignalement.lattitude > -11 || 
+          newSignalement.longitude < 43 || newSignalement.longitude > 51) {
+        showToast('⚠️ Les coordonnées semblent incorrectes pour Madagascar', 'warning');
       }
 
       // Récupérer l'utilisateur connecté
       const storedUser = localStorage.getItem('user');
       if (!storedUser) {
-        setToastMessage('Erreur: Utilisateur non connecté');
-        setShowToast(true);
+        showToast('❌ Session expirée, veuillez vous reconnecter', 'error');
         history.push('/login');
         return;
       }
@@ -141,12 +179,12 @@ const Management: React.FC = () => {
       // Ajouter l'userId au signalement
       const signalementData = {
         ...newSignalement,
-        userId: user.id
+        userId: user.id,
+        budget: newSignalement.budget || 0
       };
 
-      await api.createSignalement(signalementData as Omit<Signalement, 'id' | 'date_signalement'>);
-      setToastMessage('Signalement créé avec succès');
-      setShowToast(true);
+      await api.createSignalement(signalementData as any);
+      showToast('🎉 Signalement créé avec succès !', 'success');
       setShowAddModal(false);
       setNewSignalement({
         surface: undefined,
@@ -157,9 +195,8 @@ const Management: React.FC = () => {
         status: 'nouveau'
       });
       await loadAlerts();
-    } catch (error) {
-      setToastMessage('Erreur lors de la création');
-      setShowToast(true);
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la création du signalement', 'error');
     }
   };
 
@@ -484,12 +521,13 @@ const Management: React.FC = () => {
         </footer>
 
         <IonToast
-          isOpen={showToast}
-          onDidDismiss={() => setShowToast(false)}
-          message={toastMessage}
+          isOpen={toast.show}
+          onDidDismiss={() => setToast({ ...toast, show: false })}
+          message={toast.message}
           duration={3000}
           position="top"
-          color={toastMessage.includes('succès') ? 'success' : 'danger'}
+          color={getToastColor(toast.type)}
+          cssClass="custom-toast"
         />
       </IonContent>
     </IonPage>

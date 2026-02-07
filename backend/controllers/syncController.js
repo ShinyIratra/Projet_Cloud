@@ -10,13 +10,18 @@ const syncController = {
             // Récupérer tous les signalements de Firebase
             const firebaseSnapshot = await db.collection('road_alerts').get();
             
-            // Récupérer tous les signalements de Postgres
+            // Récupérer tous les signalements de Postgres avec leur statut actuel
             const postgresResult = await query(`
                 SELECT s.*, ss.code as status_code, e.nom as entreprise_nom,
-                       get_latitude(s.position) as lattitude, get_longitude(s.position) as longitude
+                       get_latitude(s.position) as lattitude, get_longitude(s.position) as longitude,
+                       hss.update_at as status_update_at
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.Id_statut_signalement = ss.Id_statut_signalement
                 LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
+                LEFT JOIN (
+                    SELECT DISTINCT ON (Id_signalements) Id_signalements, Id_statut_signalement, update_at
+                    FROM Historique_StatutSignalements ORDER BY Id_signalements, update_at DESC
+                ) hss ON s.Id_signalements = hss.Id_signalements
+                LEFT JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
             `);
 
             let addedToPostgres = 0;
@@ -61,41 +66,48 @@ const syncController = {
 
                 if (!postgresData) {
                     // Nouveau signalement depuis Firebase → l'ajouter à Postgres
-                    await query(`
-                        INSERT INTO signalements (surface, budget, position, Id_statut_signalement, Id_entreprise, Id_users, date_signalement, updated_at, id_firebase)
-                        VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, 
-                            (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $5),
-                            $6, 1, $7, $8, $9)
+                    const insertResult = await query(`
+                        INSERT INTO signalements (surface, budget, position, Id_entreprise, Id_users, date_signalement, id_firebase)
+                        VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, 1, $6, $7)
+                        RETURNING Id_signalements
                     `, [
                         firebaseData.surface || 0,
                         firebaseData.budget || 0,
                         firebaseData.longitude || 0,
                         firebaseData.lattitude || firebaseData.latitude || 0,
-                        statusCode,
                         entrepriseId,
                         firebaseData.date_alert || new Date().toISOString(),
-                        firebaseData.updated_at || firebaseData.date_alert || new Date().toISOString(),
                         firebaseId
                     ]);
+
+                    // Ajouter le statut initial dans l'historique
+                    const newSignalementId = insertResult.rows[0].id_signalements;
+                    await query(`
+                        INSERT INTO Historique_StatutSignalements (Id_signalements, Id_statut_signalement)
+                        VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
+                    `, [newSignalementId, statusCode]);
+
                     addedToPostgres++;
                     postgresMap.delete(firebaseId); // Marqué comme traité
                 } else {
                     // Le signalement existe dans les deux bases → comparer les dates
                     const firebaseUpdateTime = new Date(firebaseData.updated_at || firebaseData.date_alert || 0);
-                    const postgresUpdateTime = new Date(postgresData.updated_at || postgresData.date_signalement || 0);
+                    const postgresUpdateTime = new Date(postgresData.status_update_at || postgresData.date_signalement || 0);
 
                     if (firebaseUpdateTime > postgresUpdateTime) {
                         // Firebase est plus récent → mettre à jour Postgres
                         await query(
-                            `UPDATE signalements 
-                             SET Id_statut_signalement = (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $1),
-                                 Id_entreprise = $2,
-                                 surface = $3,
-                                 budget = $4,
-                                 updated_at = $5
-                             WHERE Id_signalements = $6`,
-                            [statusCode, entrepriseId, firebaseData.surface || 0, firebaseData.budget || 0, firebaseUpdateTime, postgresData.id_signalements]
+                            `UPDATE signalements SET Id_entreprise = $1, surface = $2, budget = $3 WHERE Id_signalements = $4`,
+                            [entrepriseId, firebaseData.surface || 0, firebaseData.budget || 0, postgresData.id_signalements]
                         );
+
+                        // Mettre à jour le statut si différent
+                        if (postgresData.status_code !== statusCode) {
+                            await query(`
+                                INSERT INTO Historique_StatutSignalements (Id_signalements, Id_statut_signalement)
+                                VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
+                            `, [postgresData.id_signalements, statusCode]);
+                        }
                         updatedInPostgres++;
                     } else if (postgresUpdateTime > firebaseUpdateTime) {
                         // Postgres est plus récent → mettre à jour Firebase
@@ -108,7 +120,7 @@ const syncController = {
                             concerned_entreprise: postgresData.entreprise_nom || '',
                             surface: parseFloat(postgresData.surface),
                             budget: parseFloat(postgresData.budget),
-                            updated_at: postgresData.updated_at?.toISOString() || new Date().toISOString()
+                            updated_at: new Date().toISOString()
                         });
                         updatedInFirebase++;
                     }
@@ -139,7 +151,7 @@ const syncController = {
                         status: status,
                         concerned_entreprise: postgresData.entreprise_nom || '',
                         date_alert: postgresData.date_signalement?.toISOString() || new Date().toISOString(),
-                        updated_at: postgresData.updated_at?.toISOString() || new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
                         UID: postgresData.id_users?.toString() || ''
                     });
                     addedToFirebase++;
@@ -179,7 +191,7 @@ const syncController = {
                         status: status,
                         concerned_entreprise: row.entreprise_nom || '',
                         date_alert: row.date_signalement?.toISOString() || new Date().toISOString(),
-                        updated_at: row.updated_at?.toISOString() || new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
                         UID: row.id_users?.toString() || ''
                     });
 
@@ -195,11 +207,13 @@ const syncController = {
                 addedToPostgres, 
                 updatedInPostgres, 
                 addedToFirebase, 
-                updatedInFirebase 
-            }, `Sync: +${addedToPostgres}/-${addedToFirebase} Firebase→Postgres, ${updatedInPostgres}/${updatedInFirebase} mises à jour`));
+                updatedInFirebase,
+                synced: addedToPostgres,
+                updated: updatedInPostgres + updatedInFirebase
+            }, `Synchronisation réussie ! ${addedToPostgres} ajoutés, ${updatedInPostgres + updatedInFirebase} mis à jour.`));
         } catch (error) {
             console.error('Erreur de synchronisation:', error);
-            res.status(500).json(new ApiModel('error', null, error.message));
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la synchronisation'));
         }
     },
 

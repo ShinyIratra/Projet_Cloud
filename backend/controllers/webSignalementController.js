@@ -6,21 +6,29 @@ const webSignalementController = {
 
     async getAll(req, res) {
         try {
+            // Utilise une sous-requête pour obtenir le dernier statut depuis Historique_StatutSignalements
             const result = await query(`
                 SELECT 
                     s.Id_signalements as id,
+                    s.titre,
                     s.surface,
                     s.budget,
                     get_latitude(s.position) as lattitude,
                     get_longitude(s.position) as longitude,
                     s.date_signalement,
-                    s.updated_at,
-                    ss.label as status,
-                    ss.code as status_code,
-                    e.nom as entreprise
+                    COALESCE(ss.label, 'Nouveau') as status,
+                    COALESCE(ss.code, 'nouveau') as status_code,
+                    e.nom as entreprise,
+                    hss.update_at as updated_at
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.Id_statut_signalement = ss.Id_statut_signalement
                 LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
+                LEFT JOIN (
+                    SELECT DISTINCT ON (Id_signalements) 
+                        Id_signalements, Id_statut_signalement, update_at
+                    FROM Historique_StatutSignalements
+                    ORDER BY Id_signalements, update_at DESC
+                ) hss ON s.Id_signalements = hss.Id_signalements
+                LEFT JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
                 ORDER BY s.date_signalement DESC
             `);
             
@@ -35,7 +43,8 @@ const webSignalementController = {
             
             res.json(new ApiModel('success', data, null));
         } catch (error) {
-            res.status(500).json(new ApiModel('error', null, error.message));
+            console.error('Erreur getAll signalements:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération des signalements'));
         }
     },
 
@@ -44,20 +53,28 @@ const webSignalementController = {
 
         try {
             // Valider les champs obligatoires
-            if (!surface || !lattitude || !longitude) {
-                return res.status(400).json(new ApiModel('error', null, 'Les champs surface, latitude et longitude sont obligatoires'));
+            if (surface === undefined || surface === null) {
+                return res.status(400).json(new ApiModel('error', null, 'Le champ surface est obligatoire'));
+            }
+            if (!lattitude || !longitude) {
+                return res.status(400).json(new ApiModel('error', null, 'Les coordonnées (latitude et longitude) sont obligatoires'));
+            }
+            if (!userId) {
+                return res.status(400).json(new ApiModel('error', null, 'Vous devez être connecté pour créer un signalement'));
             }
 
-            if (!userId) {
-                return res.status(400).json(new ApiModel('error', null, 'ID utilisateur est requis'));
+            // Vérifier que l'utilisateur existe
+            const userCheck = await query('SELECT Id_users FROM users WHERE Id_users = $1', [userId]);
+            if (userCheck.rows.length === 0) {
+                return res.status(400).json(new ApiModel('error', null, 'Utilisateur invalide'));
             }
 
             // Chercher l'ID de l'entreprise si fournie
             let entrepriseId = null;
-            if (entreprise) {
+            if (entreprise && entreprise.trim() !== '') {
                 const entrepriseResult = await query(
                     'SELECT Id_entreprise FROM entreprise WHERE LOWER(nom) = LOWER($1)',
-                    [entreprise]
+                    [entreprise.trim()]
                 );
                 if (entrepriseResult.rows.length > 0) {
                     entrepriseId = entrepriseResult.rows[0].id_entreprise;
@@ -65,25 +82,29 @@ const webSignalementController = {
                     // Créer l'entreprise si elle n'existe pas
                     const newEntreprise = await query(
                         'INSERT INTO entreprise (nom) VALUES ($1) RETURNING Id_entreprise',
-                        [entreprise]
+                        [entreprise.trim()]
                     );
                     entrepriseId = newEntreprise.rows[0].id_entreprise;
                 }
             }
 
-            // Déterminer le code du statut
+            // Déterminer le code du statut (par défaut: nouveau)
             const statusCode = status || 'nouveau';
 
-            // Insérer le signalement
+            // Insérer le signalement (sans Id_statut_signalement car le statut est dans Historique)
             const result = await query(`
-                INSERT INTO signalements (surface, budget, position, Id_statut_signalement, Id_entreprise, Id_users)
-                VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, 
-                    (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $5),
-                    $6, $7)
+                INSERT INTO signalements (surface, budget, position, Id_entreprise, Id_users)
+                VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, $6)
                 RETURNING Id_signalements, get_latitude(position) as lattitude, get_longitude(position) as longitude, date_signalement
-            `, [surface, budget || 0, longitude, lattitude, statusCode, entrepriseId, userId]);
+            `, [surface, budget || 0, longitude, lattitude, entrepriseId, userId]);
 
             const newId = result.rows[0].id_signalements;
+
+            // Insérer le statut initial dans Historique_StatutSignalements
+            await query(`
+                INSERT INTO Historique_StatutSignalements (Id_signalements, Id_statut_signalement)
+                VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
+            `, [newId, statusCode]);
 
             // Créer également dans Firebase
             const firebaseStatus = statusCode === 'en_cours' ? 'en cours' : (statusCode === 'termine' ? 'termine' : 'nouveau');
@@ -98,30 +119,38 @@ const webSignalementController = {
                 concerned_entreprise: entreprise || '',
                 date_alert: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-                UID: '1'
+                UID: userId.toString()
             });
 
             // Mettre à jour l'id_firebase dans Postgres
             await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docRef.id, newId]);
 
-            res.json(new ApiModel('success', { id: newId }, 'Signalement créé avec succès'));
+            res.status(201).json(new ApiModel('success', { id: newId }, 'Signalement créé avec succès'));
         } catch (error) {
-            res.status(500).json(new ApiModel('error', null, error.message));
+            console.error('Erreur création signalement:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la création du signalement'));
         }
     },
 
     async getStats(req, res) {
         try {
+            // Utiliser la vue ou une sous-requête pour récupérer les statistiques avec l'historique des statuts
             const result = await query(`
                 SELECT 
                     COUNT(*) as total_points,
-                    COALESCE(SUM(surface), 0) as total_surface,
-                    COALESCE(SUM(budget), 0) as total_budget,
+                    COALESCE(SUM(s.surface), 0) as total_surface,
+                    COALESCE(SUM(s.budget), 0) as total_budget,
                     COUNT(CASE WHEN ss.code = 'termine' THEN 1 END) as termine,
                     COUNT(CASE WHEN ss.code = 'en_cours' THEN 1 END) as en_cours,
-                    COUNT(CASE WHEN ss.code = 'nouveau' THEN 1 END) as nouveau
+                    COUNT(CASE WHEN ss.code = 'nouveau' OR ss.code IS NULL THEN 1 END) as nouveau
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.Id_statut_signalement = ss.Id_statut_signalement
+                LEFT JOIN (
+                    SELECT DISTINCT ON (Id_signalements) 
+                        Id_signalements, Id_statut_signalement
+                    FROM Historique_StatutSignalements
+                    ORDER BY Id_signalements, update_at DESC
+                ) hss ON s.Id_signalements = hss.Id_signalements
+                LEFT JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
             `);
 
             const stats = result.rows[0];
@@ -139,7 +168,8 @@ const webSignalementController = {
                 nouveau: parseInt(stats.nouveau) || 0
             }, null));
         } catch (error) {
-            res.status(500).json(new ApiModel('error', null, error.message));
+            console.error('Erreur getStats:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération des statistiques'));
         }
     },
 
@@ -147,53 +177,79 @@ const webSignalementController = {
         const { id, surface, budget, entreprise, status } = req.body;
 
         try {
+            // Vérifier que le signalement existe
+            if (!id) {
+                return res.status(400).json(new ApiModel('error', null, 'ID du signalement requis'));
+            }
+
+            const existCheck = await query('SELECT Id_signalements FROM signalements WHERE Id_signalements = $1', [id]);
+            if (existCheck.rows.length === 0) {
+                return res.status(404).json(new ApiModel('error', null, 'Signalement non trouvé'));
+            }
+
             let sql = 'UPDATE signalements SET ';
             const updates = [];
             const values = [];
             let paramIndex = 1;
 
-            if (surface !== undefined) {
+            if (surface !== undefined && surface !== null) {
                 updates.push(`surface = $${paramIndex++}`);
                 values.push(surface);
             }
-            if (budget !== undefined) {
+            if (budget !== undefined && budget !== null) {
                 updates.push(`budget = $${paramIndex++}`);
                 values.push(budget);
             }
             if (entreprise !== undefined) {
                 // Chercher l'ID de l'entreprise
-                const entrepriseResult = await query(
-                    'SELECT Id_entreprise FROM entreprise WHERE LOWER(nom) = LOWER($1)',
-                    [entreprise]
-                );
-                if (entrepriseResult.rows.length > 0) {
-                    updates.push(`Id_entreprise = $${paramIndex++}`);
-                    values.push(entrepriseResult.rows[0].id_entreprise);
+                if (entreprise && entreprise.trim() !== '') {
+                    const entrepriseResult = await query(
+                        'SELECT Id_entreprise FROM entreprise WHERE LOWER(nom) = LOWER($1)',
+                        [entreprise.trim()]
+                    );
+                    if (entrepriseResult.rows.length > 0) {
+                        updates.push(`Id_entreprise = $${paramIndex++}`);
+                        values.push(entrepriseResult.rows[0].id_entreprise);
+                    } else {
+                        // Créer l'entreprise si elle n'existe pas
+                        const newEnt = await query('INSERT INTO entreprise (nom) VALUES ($1) RETURNING Id_entreprise', [entreprise.trim()]);
+                        updates.push(`Id_entreprise = $${paramIndex++}`);
+                        values.push(newEnt.rows[0].id_entreprise);
+                    }
+                } else {
+                    updates.push(`Id_entreprise = NULL`);
                 }
             }
-            if (status !== undefined) {
-                updates.push(`Id_statut_signalement = (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $${paramIndex++})`);
-                values.push(status);
+
+            // Si un changement de statut est demandé, l'ajouter dans Historique_StatutSignalements
+            if (status !== undefined && status !== null) {
+                const statusCheck = await query('SELECT Id_statut_signalement FROM statut_signalement WHERE code = $1', [status]);
+                if (statusCheck.rows.length === 0) {
+                    return res.status(400).json(new ApiModel('error', null, 'Statut invalide. Utilisez: nouveau, en_cours ou termine'));
+                }
+                await query(`
+                    INSERT INTO Historique_StatutSignalements (Id_signalements, Id_statut_signalement)
+                    VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
+                `, [id, status]);
             }
 
-            if (updates.length === 0) {
-                return res.status(400).json(new ApiModel('error', null, 'Aucune donnee a mettre a jour'));
+            // Effectuer la mise à jour des autres champs si nécessaire
+            if (updates.length > 0) {
+                sql += updates.join(', ') + ` WHERE Id_signalements = $${paramIndex}`;
+                values.push(id);
+                await query(sql, values);
             }
-
-            // Toujours mettre à jour updated_at
-            updates.push(`updated_at = NOW()`);
-
-            sql += updates.join(', ') + ` WHERE Id_signalements = $${paramIndex}`;
-            values.push(id);
-
-            await query(sql, values);
 
             // Synchroniser vers Firebase
             const signalement = await query(`
                 SELECT s.*, ss.code as status_code, e.nom as entreprise_nom,
                        get_latitude(s.position) as lattitude, get_longitude(s.position) as longitude
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.Id_statut_signalement = ss.Id_statut_signalement
+                LEFT JOIN (
+                    SELECT DISTINCT ON (Id_signalements) Id_signalements, Id_statut_signalement
+                    FROM Historique_StatutSignalements ORDER BY Id_signalements, update_at DESC
+                ) hss ON s.Id_signalements = hss.Id_signalements
+                LEFT JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
                 LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
                 WHERE s.Id_signalements = $1
             `, [id]);
@@ -204,13 +260,22 @@ const webSignalementController = {
                 if (row.status_code === 'en_cours') firebaseStatus = 'en cours';
                 else if (row.status_code === 'termine') firebaseStatus = 'termine';
 
-                const snapshot = await db.collection('road_alerts')
-                    .where('lattitude', '==', parseFloat(row.lattitude))
-                    .where('longitude', '==', parseFloat(row.longitude))
-                    .get();
+                // Chercher le document Firebase correspondant
+                let docId = row.id_firebase;
+                if (!docId) {
+                    const snapshot = await db.collection('road_alerts')
+                        .where('lattitude', '==', parseFloat(row.lattitude))
+                        .where('longitude', '==', parseFloat(row.longitude))
+                        .get();
 
-                if (!snapshot.empty) {
-                    const docId = snapshot.docs[0].id;
+                    if (!snapshot.empty) {
+                        docId = snapshot.docs[0].id;
+                        // Mettre à jour id_firebase
+                        await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docId, id]);
+                    }
+                }
+
+                if (docId) {
                     await db.collection('road_alerts').doc(docId).update({
                         surface: parseFloat(row.surface),
                         budget: parseFloat(row.budget),
@@ -221,9 +286,10 @@ const webSignalementController = {
                 }
             }
 
-            res.json(new ApiModel('success', null, 'Signalement mis a jour'));
+            res.json(new ApiModel('success', { id }, 'Signalement mis à jour avec succès'));
         } catch (error) {
-            res.status(500).json(new ApiModel('error', null, error.message));
+            console.error('Erreur update signalement:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la mise à jour du signalement'));
         }
     },
 
@@ -231,14 +297,38 @@ const webSignalementController = {
         const { id, status } = req.body;
 
         try {
-            // Mettre à jour dans Postgres
+            // Validation des paramètres
+            if (!id) {
+                return res.status(400).json(new ApiModel('error', null, 'ID du signalement requis'));
+            }
+            if (!status) {
+                return res.status(400).json(new ApiModel('error', null, 'Nouveau statut requis'));
+            }
+
+            // Vérifier que le statut est valide
+            const validStatuses = ['nouveau', 'en_cours', 'termine'];
+            if (!validStatuses.includes(status)) {
+                return res.status(400).json(new ApiModel('error', null, 'Statut invalide. Utilisez: nouveau, en_cours ou termine'));
+            }
+
+            // Vérifier que le signalement existe
+            const existCheck = await query('SELECT Id_signalements, id_firebase FROM signalements WHERE Id_signalements = $1', [id]);
+            if (existCheck.rows.length === 0) {
+                return res.status(404).json(new ApiModel('error', null, 'Signalement non trouvé'));
+            }
+
+            // Insérer le nouveau statut dans l'historique
+            await query(`
+                INSERT INTO Historique_StatutSignalements (Id_signalements, Id_statut_signalement)
+                VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
+            `, [id, status]);
+
+            // Récupérer les infos mises à jour
             const result = await query(`
-                UPDATE signalements 
-                SET Id_statut_signalement = (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $1),
-                    updated_at = NOW()
-                WHERE Id_signalements = $2
-                RETURNING get_latitude(position) as lattitude, get_longitude(position) as longitude, date_signalement, id_firebase
-            `, [status, id]);
+                SELECT get_latitude(position) as lattitude, get_longitude(position) as longitude, 
+                       date_signalement, id_firebase
+                FROM signalements WHERE Id_signalements = $1
+            `, [id]);
 
             if (result.rows.length > 0) {
                 // Synchroniser vers Firebase
@@ -270,9 +360,15 @@ const webSignalementController = {
                 }
             }
 
-            res.json(new ApiModel('success', null, 'Statut mis a jour'));
+            // Message de succès selon le statut
+            let message = 'Statut mis à jour avec succès';
+            if (status === 'en_cours') message = 'Les travaux ont démarré !';
+            else if (status === 'termine') message = 'Signalement marqué comme terminé !';
+
+            res.json(new ApiModel('success', { id, status }, message));
         } catch (error) {
-            res.status(500).json(new ApiModel('error', null, error.message));
+            console.error('Erreur updateStatus:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la mise à jour du statut'));
         }
     },
 

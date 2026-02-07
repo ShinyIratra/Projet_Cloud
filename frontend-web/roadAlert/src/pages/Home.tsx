@@ -1,10 +1,18 @@
 import { useEffect, useState, useRef } from 'react';
-import { IonContent, IonPage } from '@ionic/react';
+import { IonContent, IonPage, IonToast } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement, Stats, User } from '../utils/api';
 import L from 'leaflet';
 import '../assets/leaflet/leaflet.css';
 import './Home.css';
+
+type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface Toast {
+  show: boolean;
+  message: string;
+  type: ToastType;
+}
 
 const Home: React.FC = () => {
   const [signalements, setSignalements] = useState<Signalement[]>([]);
@@ -12,30 +20,95 @@ const Home: React.FC = () => {
   const [selected, setSelected] = useState<Signalement | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
+  const [syncing, setSyncing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const mapInitialized = useRef(false);
   const history = useHistory();
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  // Helper pour afficher les toasts
+  const showToast = (message: string, type: ToastType = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  // Mapping couleurs pour les toasts
+  const getToastColor = (type: ToastType): string => {
+    switch (type) {
+      case 'success': return 'success';
+      case 'error': return 'danger';
+      case 'warning': return 'warning';
+      case 'info': return 'primary';
+      default: return 'medium';
     }
-    loadData();
-  }, []);
+  };
+
+  // Fonction pour vérifier si le token JWT est encore valide
+  const isTokenValid = (token: string): boolean => {
+    if (!token) return false;
+    try {
+      // Décoder le payload du JWT (partie centrale)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Vérifier si le token n'est pas expiré
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp > now;
+    } catch (e) {
+      return false;
+    }
+  };
 
   useEffect(() => {
-    initMap();
+    // Par défaut, l'utilisateur est en mode visiteur (user = null)
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        // Vérifier que le token existe et est valide
+        if (userData.token && isTokenValid(userData.token)) {
+          setUser(userData);
+        } else {
+          // Token absent ou expiré -> supprimer et rester en mode visiteur
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      } catch (e) {
+        // Données corrompues -> nettoyer
+        localStorage.removeItem('user');
+        setUser(null);
+      }
+    }
+    
+    // Initialiser la carte une seule fois
+    if (!mapInitialized.current) {
+      initMap();
+      mapInitialized.current = true;
+    }
+    
+    loadData();
+    
+    // Cleanup lors du démontage du composant
     return () => {
       if (mapRef.current) {
+        markersRef.current.forEach(marker => marker.remove());
+        markersRef.current = [];
         mapRef.current.remove();
         mapRef.current = null;
+        mapInitialized.current = false;
       }
     };
+  }, []);
+
+  // Mettre à jour les markers quand les signalements changent
+  useEffect(() => {
+    if (mapRef.current && signalements.length > 0) {
+      updateMarkers();
+    }
   }, [signalements]);
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [signalementsData, statsData] = await Promise.all([
         api.getSignalements(),
         api.getStats()
@@ -44,6 +117,9 @@ const Home: React.FC = () => {
       setStats(statsData);
     } catch (err) {
       console.error('Erreur chargement:', err);
+      showToast('Erreur lors du chargement des données', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,6 +136,17 @@ const Home: React.FC = () => {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapRef.current);
 
+    mapRef.current.on('click', () => setSelected(null));
+  };
+
+  const updateMarkers = () => {
+    // Supprimer les anciens markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    if (!mapRef.current) return;
+
+    // Ajouter les nouveaux markers
     signalements.forEach(s => {
       const customIcon = L.divIcon({
         className: 'custom-div-icon',
@@ -82,18 +169,31 @@ const Home: React.FC = () => {
 
       markersRef.current.push(marker);
     });
-
-    mapRef.current.on('click', () => setSelected(null));
   };
 
   const handleSync = async () => {
+    if (syncing) return;
+    
     try {
+      setSyncing(true);
       const result = await api.syncFromFirebase();
-      const message = ` Synchronisation terminée\n${result.synced} nouveau(x) signalement(s)\n${result.updated} mis à jour`;
-      alert(message);
+      
+      // Construire un message détaillé
+      let message = ' Synchronisation terminée ! ';
+      if (result.addedToPostgres || result.updatedInPostgres) {
+        message += `${result.addedToPostgres || 0} ajouté(s), ${result.updatedInPostgres || 0} mis à jour.`;
+      } else if (result.synced || result.updated) {
+        message += `${result.synced || 0} nouveau(x), ${result.updated || 0} mis à jour.`;
+      } else {
+        message = ' Tout est déjà synchronisé !';
+      }
+      
+      showToast(message, 'success');
       loadData();
-    } catch (err) {
-      alert('❌ Erreur de synchronisation');
+    } catch (err: any) {
+      showToast(err.message || 'Erreur de synchronisation', 'error');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -101,14 +201,17 @@ const Home: React.FC = () => {
     localStorage.removeItem('user');
     setUser(null);
     setShowUserMenu(false);
-    history.push('/login');
+    showToast('Déconnexion réussie', 'info');
+    setTimeout(() => history.push('/login'), 1000);
   };
 
   const toggleUserMenu = () => {
     setShowUserMenu(!showUserMenu);
   };
 
-  const isManager = user?.type_user?.toLowerCase() === 'manager';
+  // L'utilisateur est manager SEULEMENT s'il est connecté (user non null) ET a le type 'manager'
+  const isAuthenticated = user !== null && user.token !== undefined;
+  const isManager = isAuthenticated && user?.type_user?.toLowerCase() === 'manager';
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -143,9 +246,9 @@ const Home: React.FC = () => {
 
           <div className="navbar-right">
             {isManager && (
-              <button className="btn-sync" onClick={handleSync}>
-                <i className="fas fa-sync-alt"></i>
-                <span>Synchroniser</span>
+              <button className="btn-sync" onClick={handleSync} disabled={syncing}>
+                <i className={`fas fa-sync-alt ${syncing ? 'fa-spin' : ''}`}></i>
+                <span>{syncing ? 'Sync...' : 'Synchroniser'}</span>
               </button>
             )}
             <i className="far fa-compass nav-icon"></i>
@@ -270,21 +373,30 @@ const Home: React.FC = () => {
           <div className="panel-left">
             <div className="floating-card stats-card">
               <h2 className="card-title">État global</h2>
-              <div className="stats-content">
-                <div className="stat-item">
-                  <p className="stat-number">{stats?.total_points || 0}</p>
-                  <p className="stat-label">Points recensés à Tana</p>
-                </div>
-                <div className="progress-section">
-                  <div className="progress-header">
-                    <span className="progress-label">Réparation Globale</span>
-                    <span className="progress-value">{stats?.avancement || 0}%</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${stats?.avancement || 0}%` }}></div>
+              {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '150px' }}>
+                  <div style={{ fontSize: '14px', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    <i className="fas fa-circle-notch fa-spin" style={{ fontSize: '32px', color: '#3b82f6' }}></i>
+                    <span>Chargement...</span>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="stats-content">
+                  <div className="stat-item">
+                    <p className="stat-number">{stats?.total_points || 0}</p>
+                    <p className="stat-label">Points recensés à Tana</p>
+                  </div>
+                  <div className="progress-section">
+                    <div className="progress-header">
+                      <span className="progress-label">Réparation Globale</span>
+                      <span className="progress-value">{stats?.avancement || 0}%</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{ width: `${stats?.avancement || 0}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -345,7 +457,7 @@ const Home: React.FC = () => {
             className="footer-btn" 
             onClick={() => {
               if (!isManager) {
-                alert('⚠️ Accès refusé : Cette page est réservée aux managers');
+                showToast('⚠️ Accès réservé aux managers. Connectez-vous.', 'warning');
               } else {
                 history.push('/management');
               }
@@ -354,6 +466,17 @@ const Home: React.FC = () => {
             <i className="fas fa-cog"></i>
           </button>
         </div>
+
+        {/* TOAST NOTIFICATIONS */}
+        <IonToast
+          isOpen={toast.show}
+          onDidDismiss={() => setToast({ ...toast, show: false })}
+          message={toast.message}
+          duration={3000}
+          position="top"
+          color={getToastColor(toast.type)}
+          cssClass="custom-toast"
+        />
       </IonContent>
     </IonPage>
   );
