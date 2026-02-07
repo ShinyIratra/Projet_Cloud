@@ -228,6 +228,78 @@ const syncController = {
         // Cette méthode est maintenant fusionnée avec syncFromFirebase
         // On garde la même logique pour la compatibilité
         return this.syncFromFirebase(req, res);
+    },
+
+    // Synchroniser les utilisateurs Postgres vers Firebase
+    async syncUsersToFirebase(req, res) {
+        try {
+            // Récupérer tous les utilisateurs de type "utilisateur" uniquement (pas les managers)
+            const usersResult = await query(`
+                SELECT u.Id_users, u.username, u.email, u.password,
+                       tu.label as type_user,
+                       st.code as status_code
+                FROM users u
+                JOIN type_user tu ON u.Id_type_user = tu.Id_type_user
+                LEFT JOIN (
+                    SELECT DISTINCT ON (Id_users) 
+                        Id_users, Id_statut_type
+                    FROM users_status
+                    ORDER BY Id_users, update_at DESC
+                ) us ON u.Id_users = us.Id_users
+                LEFT JOIN statut_type st ON us.Id_statut_type = st.Id_statut_type
+                WHERE LOWER(tu.label) = 'utilisateur'
+            `);
+
+            let addedToFirebase = 0;
+            let updatedInFirebase = 0;
+            let errors = [];
+
+            // Traiter chaque utilisateur
+            for (const user of usersResult.rows) {
+                try {
+                    const userId = user.id_users.toString();
+                    const userRef = db.collection('users').doc(userId);
+                    const userDoc = await userRef.get();
+
+                    const userData = {
+                        uid: userId,
+                        email: user.email,
+                        username: user.username,
+                        password: user.password,
+                        type_user: user.type_user,
+                        status: user.status_code || 'active',
+                        synced_at: new Date().toISOString()
+                    };
+
+                    if (!userDoc.exists) {
+                        // Créer l'utilisateur dans Firebase
+                        await userRef.set(userData);
+                        addedToFirebase++;
+                    } else {
+                        // Mettre à jour l'utilisateur dans Firebase
+                        await userRef.update(userData);
+                        updatedInFirebase++;
+                    }
+                } catch (userError) {
+                    console.error(`Erreur pour l'utilisateur ${user.email}:`, userError);
+                    errors.push(`${user.email}: ${userError.message}`);
+                }
+            }
+
+            const message = errors.length > 0
+                ? `Synchronisation terminée avec ${errors.length} erreur(s). ${addedToFirebase} ajoutés, ${updatedInFirebase} mis à jour.`
+                : `Synchronisation réussie ! ${addedToFirebase} utilisateurs ajoutés, ${updatedInFirebase} mis à jour.`;
+
+            res.json(new ApiModel('success', {
+                addedToFirebase,
+                updatedInFirebase,
+                errors: errors.length > 0 ? errors : undefined
+            }, message));
+
+        } catch (error) {
+            console.error('Erreur de synchronisation des utilisateurs:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la synchronisation des utilisateurs'));
+        }
     }
 };
 

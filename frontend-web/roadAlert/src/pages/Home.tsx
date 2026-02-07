@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { IonContent, IonPage, IonToast } from '@ionic/react';
+import { IonContent, IonPage, IonToast, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement, Stats, User } from '../utils/api';
 import L from 'leaflet';
@@ -105,6 +105,11 @@ const Home: React.FC = () => {
       updateMarkers();
     }
   }, [signalements]);
+
+  // Recharger les données chaque fois qu'on revient sur cette page
+  useIonViewWillEnter(() => {
+    loadData();
+  });
 
   const loadData = async () => {
     try {
@@ -264,20 +269,21 @@ const Home: React.FC = () => {
             <i className="far fa-compass nav-icon"></i>
             <div className="user-section">
               {user ? (
-                <div style={{ position: 'relative' }}>
+                <>
                   <div className="user-info-text">
                     <span className="user-role">{user.type_user}</span>
                   </div>
-                  <div className="avatar" onClick={toggleUserMenu} title="Menu utilisateur" style={{ cursor: 'pointer', background: user.type_user?.toLowerCase() === 'manager' ? '#3b82f6' : '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
-                  </div>
-                  {showUserMenu && (
-                    <div 
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        right: 0,
-                        marginTop: '8px',
+                  <div style={{ position: 'relative' }}>
+                    <div className="avatar" onClick={toggleUserMenu} title="Menu utilisateur" style={{ cursor: 'pointer', background: user.type_user?.toLowerCase() === 'manager' ? '#3b82f6' : '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
+                    </div>
+                    {showUserMenu && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          right: 0,
+                          marginTop: '8px',
                         backgroundColor: 'white',
                         borderRadius: '12px',
                         boxShadow: '0 10px 40px -12px rgba(0,0,0,0.25)',
@@ -383,7 +389,8 @@ const Home: React.FC = () => {
                       </button>
                     </div>
                   )}
-                </div>
+                  </div>
+                </>
               ) : (
                 <div style={{ position: 'relative' }}>
                   <div className="user-info-text">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IonContent, IonPage, IonToast } from '@ionic/react';
+import { IonContent, IonPage, IonToast, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api } from '../utils/api';
 import './BlockedUsers.css';
@@ -59,6 +59,11 @@ const BlockedUsers: React.FC = () => {
     setUserName(user.username || 'Manager');
     loadBlockedUsers();
   }, [history]);
+
+  // Recharger les données chaque fois qu'on revient sur cette page
+  useIonViewWillEnter(() => {
+    loadBlockedUsers();
+  });
 
   const loadBlockedUsers = async () => {
     try {
@@ -230,6 +235,9 @@ const BlockedUsers: React.FC = () => {
             </button>
             <button className="footer-btn active">
               <i className="fas fa-user-shield"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/users-list')}>
+              <i className="fas fa-users-cog"></i>
             </button>
         </footer>
 

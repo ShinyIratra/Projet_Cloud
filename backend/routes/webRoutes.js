@@ -157,6 +157,7 @@ router.post('/unblock', verifyToken, isManager, webAuthController.unblockUser);
  *       403:
  *         description: Accès refusé (pas manager)
  */
+router.get('/users', verifyToken, isManager, webAuthController.getAllUsers);
 router.get('/users/blocked', verifyToken, isManager, webAuthController.getBlockedUsers);
 
 /**
@@ -194,6 +195,51 @@ router.get('/users/blocked', verifyToken, isManager, webAuthController.getBlocke
  *         description: Utilisateur non trouvé
  */
 router.put('/user/update', verifyToken, webAuthController.updateUserInfo);
+
+/**
+ * @swagger
+ * /api/web/users/create:
+ *   post:
+ *     summary: Créer un nouvel utilisateur (Manager uniquement)
+ *     tags: [Web Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: nouveauuser
+ *               email:
+ *                 type: string
+ *                 example: newuser@example.com
+ *               password:
+ *                 type: string
+ *                 example: password123
+ *               type_user:
+ *                 type: string
+ *                 enum: [utilisateur, manager]
+ *                 default: utilisateur
+ *                 example: utilisateur
+ *     responses:
+ *       201:
+ *         description: Utilisateur créé avec succès
+ *       400:
+ *         description: Données invalides
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé (pas manager)
+ */
+router.post('/users/create', verifyToken, isManager, webAuthController.createUser);
 
 // Signalements
 /**
@@ -428,5 +474,32 @@ router.post('/sync/from-firebase', verifyToken, isManager, syncController.syncFr
  *         description: Accès refusé (pas manager)
  */
 router.post('/sync/to-firebase', verifyToken, isManager, syncController.syncToFirebase);
+
+/**
+ * @swagger
+ * /api/web/sync/users-to-firebase:
+ *   post:
+ *     summary: Synchroniser les utilisateurs vers Firebase (Manager uniquement)
+ *     tags: [Synchronisation]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Synchronisation des utilisateurs terminée
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 addedToFirebase:
+ *                   type: integer
+ *                   description: Nombre d'utilisateurs ajoutés à Firebase
+ *                 updatedInFirebase:
+ *                   type: integer
+ *                   description: Nombre d'utilisateurs mis à jour dans Firebase
+ *       403:
+ *         description: Accès refusé (pas manager)
+ */
+router.post('/sync/users-to-firebase', verifyToken, isManager, syncController.syncUsersToFirebase);
 
 export default router;

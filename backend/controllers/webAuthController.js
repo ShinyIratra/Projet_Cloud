@@ -192,6 +192,32 @@ const webAuthController = {
         }
     },
 
+    async getAllUsers(req, res) {
+        try {
+            const result = await query(`
+                SELECT DISTINCT ON (u.Id_users) 
+                    u.Id_users, u.username, u.email,
+                    tu.label as type_user,
+                    st.code as status_code,
+                    us.update_at as last_update
+                FROM users u
+                JOIN type_user tu ON u.Id_type_user = tu.Id_type_user
+                LEFT JOIN (
+                    SELECT DISTINCT ON (Id_users) 
+                        Id_users, Id_statut_type, update_at, reason
+                    FROM users_status
+                    ORDER BY Id_users, update_at DESC
+                ) us ON u.Id_users = us.Id_users
+                LEFT JOIN statut_type st ON us.Id_statut_type = st.Id_statut_type
+                ORDER BY u.Id_users, us.update_at DESC
+            `);
+            res.json(new ApiModel('success', result.rows, null));
+        } catch (error) {
+            console.error('Erreur getAllUsers:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération des utilisateurs'));
+        }
+    },
+
     async getBlockedUsers(req, res) {
         try {
             const result = await query(`
@@ -304,6 +330,85 @@ const webAuthController = {
         } catch (error) {
             console.error('Erreur updateUserInfo:', error);
             res.status(500).json(new ApiModel('error', null, 'Erreur lors de la modification des informations'));
+        }
+    },
+
+    // Créer un nouvel utilisateur (Manager uniquement)
+    async createUser(req, res) {
+        const { username, email, password } = req.body;
+
+        try {
+            // Validation des entrées
+            if (!username || !email || !password) {
+                return res.status(400).json(new ApiModel('error', null, 'Tous les champs sont requis'));
+            }
+
+            // Validation du nom d'utilisateur
+            if (username.length < 3) {
+                return res.status(400).json(new ApiModel('error', null, 'Le nom d\'utilisateur doit contenir au moins 3 caractères'));
+            }
+
+            // Validation de l'email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                return res.status(400).json(new ApiModel('error', null, 'Format d\'email invalide'));
+            }
+
+            // Validation du mot de passe
+            if (password.length < 6) {
+                return res.status(400).json(new ApiModel('error', null, 'Le mot de passe doit contenir au moins 6 caractères'));
+            }
+
+            // Vérifier si l'email existe déjà
+            const emailCheck = await query('SELECT Id_users FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+            if (emailCheck.rows.length > 0) {
+                return res.status(400).json(new ApiModel('error', null, 'Cet email est déjà utilisé'));
+            }
+
+            // Vérifier si le username existe déjà
+            const usernameCheck = await query('SELECT Id_users FROM users WHERE username = $1', [username.trim()]);
+            if (usernameCheck.rows.length > 0) {
+                return res.status(400).json(new ApiModel('error', null, 'Ce nom d\'utilisateur est déjà pris'));
+            }
+
+            // Le type d'utilisateur est toujours 'utilisateur' (jamais manager)
+            const typeUserLabel = 'utilisateur';
+            const typeUserResult = await query(
+                'SELECT Id_type_user FROM type_user WHERE LOWER(label) = LOWER($1)',
+                [typeUserLabel]
+            );
+
+            if (typeUserResult.rows.length === 0) {
+                return res.status(400).json(new ApiModel('error', null, 'Type d\'utilisateur invalide'));
+            }
+
+            const typeUserId = typeUserResult.rows[0].id_type_user;
+
+            // Créer l'utilisateur
+            const result = await query(`
+                INSERT INTO users (username, email, password, Id_type_user)
+                VALUES ($1, $2, $3, $4)
+                RETURNING Id_users, username, email
+            `, [username.trim(), email.trim().toLowerCase(), password, typeUserId]);
+
+            const newUserId = result.rows[0].id_users;
+
+            // Ajouter le statut initial (actif)
+            await query(`
+                INSERT INTO users_status (Id_users, Id_statut_type)
+                VALUES ($1, (SELECT Id_statut_type FROM statut_type WHERE code = 'active'))
+            `, [newUserId]);
+
+            res.status(201).json(new ApiModel('success', {
+                id: newUserId,
+                username: result.rows[0].username,
+                email: result.rows[0].email,
+                type_user: typeUserLabel
+            }, 'Utilisateur créé avec succès'));
+
+        } catch (error) {
+            console.error('Erreur createUser:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la création de l\'utilisateur'));
         }
     }
 };

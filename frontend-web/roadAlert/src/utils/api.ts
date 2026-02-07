@@ -181,6 +181,14 @@ export const api = {
     return data.data?.synced || 0;
   },
 
+  async getAllUsers(): Promise<any[]> {
+    const res = await fetch(`${API_URL}/api/web/users`, {
+      headers: getAuthHeaders()
+    });
+    const data = await res.json();
+    return data.data || [];
+  },
+
   async getBlockedUsers(): Promise<any[]> {
     const res = await fetch(`${API_URL}/api/web/users/blocked`, {
       headers: getAuthHeaders()
@@ -198,5 +206,24 @@ export const api = {
       body: JSON.stringify({ userId }),
     });
     await handleResponse(res, 'Erreur lors du déblocage');
+  },
+
+  async createUser(userData: { username: string; email: string; password: string }): Promise<User> {
+    const res = await fetch(`${API_URL}/api/web/users/create`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(userData),
+    });
+    const data = await handleResponse(res, 'Erreur lors de la création de l\'utilisateur');
+    return data.data;
+  },
+
+  async syncUsersToFirebase(): Promise<{ addedToFirebase: number; updatedInFirebase: number }> {
+    const res = await fetch(`${API_URL}/api/web/sync/users-to-firebase`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    const data = await handleResponse(res, 'Erreur de synchronisation des utilisateurs');
+    return data.data || { addedToFirebase: 0, updatedInFirebase: 0 };
   },
 };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IonContent, IonPage } from '@ionic/react';
+import { IonContent, IonPage, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement } from '../utils/api';
 import {
@@ -72,6 +72,11 @@ const Dashboard: React.FC = () => {
     }
     loadData();
   }, []);
+
+  // Recharger les données chaque fois qu'on revient sur cette page
+  useIonViewWillEnter(() => {
+    loadData();
+  });
 
   const loadData = async () => {
     try {
@@ -224,7 +229,7 @@ const Dashboard: React.FC = () => {
         ticks: {
           font: {
             size: 10,
-            weight: '600',
+            weight: 600,
           },
           color: '#94a3b8',
         },
@@ -236,7 +241,7 @@ const Dashboard: React.FC = () => {
         ticks: {
           font: {
             size: 10,
-            weight: '600',
+            weight: 600,
           },
           color: '#94a3b8',
         },
@@ -490,6 +495,9 @@ const Dashboard: React.FC = () => {
               </button>
               <button className="footer-btn" onClick={() => history.push('/blocked-users')}>
                 <i className="fas fa-user-shield"></i>
+              </button>
+              <button className="footer-btn" onClick={() => history.push('/users-list')}>
+                <i className="fas fa-users-cog"></i>
               </button>
             </div>
           )}

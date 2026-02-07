@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IonContent, IonPage, IonToast } from '@ionic/react';
+import { IonContent, IonPage, IonToast, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement } from '../utils/api';
 import './Management.css';
@@ -74,6 +74,11 @@ const Management: React.FC = () => {
   useEffect(() => {
     filterAlerts();
   }, [alerts, filter]);
+
+  // Recharger les données chaque fois qu'on revient sur cette page
+  useIonViewWillEnter(() => {
+    loadAlerts();
+  });
 
   const loadEntreprises = async () => {
     try {
@@ -525,6 +530,9 @@ const Management: React.FC = () => {
             </button>
             <button className="footer-btn" onClick={() => history.push('/blocked-users')}>
               <i className="fas fa-user-shield"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/users-list')}>
+              <i className="fas fa-users-cog"></i>
             </button>
           </div>
         </footer>
