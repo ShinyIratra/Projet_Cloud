@@ -25,6 +25,7 @@ const BlockedUsers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [userName, setUserName] = useState('Manager');
   const history = useHistory();
 
   // Helper pour afficher les toasts
@@ -55,6 +56,7 @@ const BlockedUsers: React.FC = () => {
       setTimeout(() => history.push('/home'), 2000);
       return;
     }
+    setUserName(user.username || 'Manager');
     loadBlockedUsers();
   }, [history]);
 
@@ -118,11 +120,15 @@ const BlockedUsers: React.FC = () => {
         <nav className="glass-nav">
           <div className="navbar-left">
             <div className="navbar-brand">
-              Road<span className="brand-accent">Watch</span>
+              Road<span className="brand-accent">Alert</span>
             </div>
-            <span className="admin-badge">Admin</span>
+            <span className="manager-badge">Manager</span>
           </div>
           <div className="navbar-right">
+            <div className="profile-info">
+              
+              <p className="profile-name">{userName}</p>
+            </div>
             <div className="profile-avatar" style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
             </div>
@@ -211,20 +217,20 @@ const BlockedUsers: React.FC = () => {
         {/* FOOTER NAV */}
         <footer className="footer-nav">
           <button className="footer-btn" onClick={() => history.push('/home')}>
-            <i className="fas fa-home"></i>
-          </button>
-          <button className="footer-btn" onClick={() => history.push('/dashboard')}>
-            <i className="fas fa-chart-line"></i>
-          </button>
-          <button className="footer-btn" onClick={() => history.push('/management')}>
-            <i className="fas fa-tasks"></i>
-          </button>
-          <button className="footer-btn active">
-            <i className="fas fa-user-shield"></i>
-          </button>
-          <button className="footer-btn">
-            <i className="fas fa-cog"></i>
-          </button>
+              <i className="fas fa-map-marked-alt"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/dashboard')}>
+              <i className="fas fa-chart-line"></i>
+            </button>
+            <button className="footer-btn disabled">
+              <i className="fas fa-plus-circle"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/management')}>
+              <i className="fas fa-tasks"></i>
+            </button>
+            <button className="footer-btn active">
+              <i className="fas fa-user-shield"></i>
+            </button>
         </footer>
 
         <IonToast

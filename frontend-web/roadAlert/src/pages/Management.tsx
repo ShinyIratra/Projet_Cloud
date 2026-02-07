@@ -31,6 +31,7 @@ const Management: React.FC = () => {
     status: 'nouveau'
   });
   const [entreprises, setEntreprises] = useState<{id: number, nom: string}[]>([]);
+  const [userName, setUserName] = useState('Manager');
   const history = useHistory();
 
   // Helper pour afficher les toasts
@@ -62,6 +63,7 @@ const Management: React.FC = () => {
       setTimeout(() => history.push('/home'), 2000);
       return;
     }
+    setUserName(user.username || 'Manager');
   }, [history]);
 
   useEffect(() => {
@@ -152,25 +154,25 @@ const Management: React.FC = () => {
     try {
       // Validation des champs
       if (!newSignalement.surface || newSignalement.surface <= 0) {
-        showToast('⚠️ La surface doit être supérieure à 0', 'warning');
+        showToast(' La surface doit être supérieure à 0', 'warning');
         return;
       }
 
       if (!newSignalement.lattitude || !newSignalement.longitude) {
-        showToast('⚠️ Veuillez renseigner les coordonnées GPS', 'warning');
+        showToast(' Veuillez renseigner les coordonnées GPS', 'warning');
         return;
       }
 
       // Vérifier que les coordonnées sont valides (Madagascar approximativement)
       if (newSignalement.lattitude < -26 || newSignalement.lattitude > -11 || 
           newSignalement.longitude < 43 || newSignalement.longitude > 51) {
-        showToast('⚠️ Les coordonnées semblent incorrectes pour Madagascar', 'warning');
+        showToast(' Les coordonnées semblent incorrectes pour Madagascar', 'warning');
       }
 
       // Récupérer l'utilisateur connecté
       const storedUser = localStorage.getItem('user');
       if (!storedUser) {
-        showToast('❌ Session expirée, veuillez vous reconnecter', 'error');
+        showToast(' Session expirée, veuillez vous reconnecter', 'error');
         history.push('/login');
         return;
       }
@@ -184,7 +186,7 @@ const Management: React.FC = () => {
       };
 
       await api.createSignalement(signalementData as any);
-      showToast('🎉 Signalement créé avec succès !', 'success');
+      showToast(' Signalement créé avec succès !', 'success');
       setShowAddModal(false);
       setNewSignalement({
         surface: undefined,
@@ -238,8 +240,8 @@ const Management: React.FC = () => {
           </div>
           <div className="navbar-right">
             <div className="profile-info">
-              <p className="profile-label">Connecté en tant que</p>
-              <p className="profile-name">Manager</p>
+              
+              <p className="profile-name">{userName}</p>
             </div>
             <div className="profile-avatar" style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
@@ -393,22 +395,29 @@ const Management: React.FC = () => {
                     <div className="card-right">
                       <div className="controls-section">
                         <p className="controls-title">Mettre à jour le statut</p>
-                        <div className="status-buttons">
-                          <button
-                            className="status-btn progress"
-                            onClick={() => handleStatusChange(alert.id, 'En cours')}
-                          >
-                            <i className="fas fa-hammer"></i>
-                            <span>Lancer</span>
-                          </button>
-                          <button
-                            className="status-btn done"
-                            onClick={() => handleStatusChange(alert.id, 'Terminé')}
-                          >
+                        {(alert.status?.toLowerCase() === 'termine' || alert.status?.toLowerCase().includes('termin')) ? (
+                          <div className="status-completed-message">
                             <i className="fas fa-check-circle"></i>
-                            <span>Terminer</span>
-                          </button>
-                        </div>
+                            <p>Ce signalement est terminé</p>
+                          </div>
+                        ) : (
+                          <div className="status-buttons">
+                            <button
+                              className="status-btn progress"
+                              onClick={() => handleStatusChange(alert.id, 'En cours')}
+                            >
+                              <i className="fas fa-hammer"></i>
+                              <span>Lancer</span>
+                            </button>
+                            <button
+                              className="status-btn done"
+                              onClick={() => handleStatusChange(alert.id, 'Terminé')}
+                            >
+                              <i className="fas fa-check-circle"></i>
+                              <span>Terminer</span>
+                            </button>
+                          </div>
+                        )}
                         <button className="btn-edit" onClick={() => startEditing(alert)}>
                           <i className="fas fa-edit"></i> Modifier les détails
                         </button>
@@ -503,10 +512,10 @@ const Management: React.FC = () => {
         <footer className="management-footer">
           <div className="footer-nav">
             <button className="footer-btn" onClick={() => history.push('/home')}>
-              <i className="fas fa-home"></i>
+              <i className="fas fa-map-marked-alt"></i>
             </button>
             <button className="footer-btn" onClick={() => history.push('/dashboard')}>
-              <i className="fas fa-chart-bar"></i>
+              <i className="fas fa-chart-line"></i>
             </button>
             <button className="footer-btn" onClick={() => setShowAddModal(true)}>
               <i className="fas fa-plus-circle"></i>

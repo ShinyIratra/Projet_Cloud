@@ -156,7 +156,14 @@ const webSignalementController = {
             const stats = result.rows[0];
             const total = parseInt(stats.total_points) || 0;
             const termine = parseInt(stats.termine) || 0;
-            const avancement = total > 0 ? Math.round((termine / total) * 100) : 0;
+            const en_cours = parseInt(stats.en_cours) || 0;
+            const nouveau = parseInt(stats.nouveau) || 0;
+            
+            // Calcul de l'avancement global basé sur les pourcentages de chaque statut
+            // nouveau = 0%, en_cours = 50%, terminé = 100%
+            const avancement = total > 0 
+                ? Math.round(((nouveau * 0) + (en_cours * 50) + (termine * 100)) / total)
+                : 0;
 
             res.json(new ApiModel('success', {
                 total_points: total,
@@ -164,8 +171,8 @@ const webSignalementController = {
                 total_budget: parseFloat(stats.total_budget) || 0,
                 avancement: avancement,
                 termine: termine,
-                en_cours: parseInt(stats.en_cours) || 0,
-                nouveau: parseInt(stats.nouveau) || 0
+                en_cours: en_cours,
+                nouveau: nouveau
             }, null));
         } catch (error) {
             console.error('Erreur getStats:', error);

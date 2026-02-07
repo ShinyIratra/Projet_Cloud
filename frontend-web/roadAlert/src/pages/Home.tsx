@@ -251,6 +251,16 @@ const Home: React.FC = () => {
                 <span>{syncing ? 'Sync...' : 'Synchroniser'}</span>
               </button>
             )}
+            {!user && (
+              <button 
+                className="btn-sync" 
+                onClick={() => history.push('/login')}
+                style={{ background: '#3b82f6', color: 'white' }}
+              >
+                <i className="fas fa-sign-in-alt"></i>
+                <span>Se connecter</span>
+              </button>
+            )}
             <i className="far fa-compass nav-icon"></i>
             <div className="user-section">
               {user ? (
@@ -282,6 +292,27 @@ const Home: React.FC = () => {
                         <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '4px 0 0 0', color: '#0f172a' }}>{user.username}</p>
                         <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0' }}>{user.email}</p>
                       </div>
+                      <button 
+                        onClick={() => { setShowUserMenu(false); history.push('/dashboard'); }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <i className="fas fa-chart-line"></i> Tableau de bord
+                      </button>
                       {isManager && (
                         <>
                           <button 
@@ -354,14 +385,58 @@ const Home: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <>
+                <div style={{ position: 'relative' }}>
                   <div className="user-info-text">
                     <span className="user-role">Visiteur</span>
                   </div>
-                  <div className="avatar" onClick={() => history.push('/login')} title="Se connecter" style={{ background: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="avatar" onClick={toggleUserMenu} title="Menu" style={{ cursor: 'pointer', background: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <i className="fas fa-user" style={{ color: 'white', fontSize: '20px' }}></i>
                   </div>
-                </>
+                  {showUserMenu && (
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        marginTop: '8px',
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 40px -12px rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        padding: '8px',
+                        minWidth: '200px',
+                        zIndex: 1000
+                      }}
+                    >
+                      <div style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Mode</p>
+                        <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '4px 0 0 0', color: '#0f172a' }}>Visiteur</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0' }}>Accès limité</p>
+                      </div>
+                      <button 
+                        onClick={() => { setShowUserMenu(false); history.push('/dashboard'); }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <i className="fas fa-chart-line"></i> Tableau de bord
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -457,7 +532,7 @@ const Home: React.FC = () => {
             className="footer-btn" 
             onClick={() => {
               if (!isManager) {
-                showToast('⚠️ Accès réservé aux managers. Connectez-vous.', 'warning');
+                showToast(' Accès réservé aux managers. Connectez-vous.', 'warning');
               } else {
                 history.push('/management');
               }

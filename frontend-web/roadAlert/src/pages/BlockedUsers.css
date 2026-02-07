@@ -1,13 +1,19 @@
 .blocked-users-page {
-  --background: #f1f5f9;
+  --background: #ffffff !important;
+  background: #ffffff !important;
 }
 
 .blocked-users-page .ion-page {
-  background: #f1f5f9 !important;
+  background: #ffffff !important;
+}
+
+.blocked-users-page ion-content {
+  --background: #ffffff !important;
+  background: #ffffff !important;
 }
 
 .blocked-users-content {
-  background: #f1f5f9;
+  background: #ffffff;
 }
 
 .glass-nav {
@@ -43,7 +49,7 @@
   color: #3b82f6;
 }
 
-.admin-badge {
+.manager-badge {
   background: #0f172a;
   color: white;
   font-size: 10px;
@@ -82,6 +88,7 @@
   padding-bottom: 120px;
   max-width: 1200px;
   margin: 0 auto;
+  background: #ffffff;
 }
 
 .page-header {
