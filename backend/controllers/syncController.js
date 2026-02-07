@@ -59,6 +59,13 @@ const syncController = {
                     );
                     if (entrepriseResult.rows.length > 0) {
                         entrepriseId = entrepriseResult.rows[0].id_entreprise;
+                    } else {
+                        // L'entreprise n'existe pas dans Postgres → la créer
+                        const newEntrepriseResult = await query(
+                            'INSERT INTO entreprise (nom) VALUES ($1) RETURNING Id_entreprise',
+                            [firebaseData.concerned_entreprise]
+                        );
+                        entrepriseId = newEntrepriseResult.rows[0].id_entreprise;
                     }
                 }
 
@@ -152,7 +159,7 @@ const syncController = {
                         concerned_entreprise: postgresData.entreprise_nom || '',
                         date_alert: postgresData.date_signalement?.toISOString() || new Date().toISOString(),
                         updated_at: new Date().toISOString(),
-                        UID: postgresData.id_users?.toString() || ''
+                        UID: postgresData.id_signalements?.toString() || ''
                     });
                     addedToFirebase++;
                 }
@@ -192,7 +199,7 @@ const syncController = {
                         concerned_entreprise: row.entreprise_nom || '',
                         date_alert: row.date_signalement?.toISOString() || new Date().toISOString(),
                         updated_at: new Date().toISOString(),
-                        UID: row.id_users?.toString() || ''
+                        UID: row.id_signalements?.toString() || ''
                     });
 
                     await query(

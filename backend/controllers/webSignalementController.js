@@ -119,7 +119,7 @@ const webSignalementController = {
                 concerned_entreprise: entreprise || '',
                 date_alert: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-                UID: userId.toString()
+                UID: newId.toString()
             });
 
             // Mettre à jour l'id_firebase dans Postgres
