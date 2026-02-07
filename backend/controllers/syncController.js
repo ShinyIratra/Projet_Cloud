@@ -50,26 +50,37 @@ const syncController = {
                     else if (s === 'termine' || s.includes('termin')) statusCode = 'termine';
                 }
 
-                // Gérer l'entreprise : chercher l'ID par nom
+                const postgresData = postgresMap.get(firebaseId);
+
+                // SYNCHRONISATION BIDIRECTIONNELLE DES ENTREPRISES
                 let entrepriseId = null;
-                if (firebaseData.concerned_entreprise) {
+                let entrepriseNom = null;
+                
+                // Cas 1: Firebase a une entreprise → synchroniser vers PostgreSQL
+                if (firebaseData.concerned_entreprise && firebaseData.concerned_entreprise.trim() !== '') {
+                    entrepriseNom = firebaseData.concerned_entreprise.trim();
                     const entrepriseResult = await query(
                         'SELECT Id_entreprise FROM entreprise WHERE LOWER(nom) = LOWER($1)',
-                        [firebaseData.concerned_entreprise]
+                        [entrepriseNom]
                     );
                     if (entrepriseResult.rows.length > 0) {
                         entrepriseId = entrepriseResult.rows[0].id_entreprise;
                     } else {
-                        // L'entreprise n'existe pas dans Postgres → la créer
+                        // Créer l'entreprise dans PostgreSQL
                         const newEntrepriseResult = await query(
                             'INSERT INTO entreprise (nom) VALUES ($1) RETURNING Id_entreprise',
-                            [firebaseData.concerned_entreprise]
+                            [entrepriseNom]
                         );
                         entrepriseId = newEntrepriseResult.rows[0].id_entreprise;
+                        console.log(`Nouvelle entreprise créée depuis Firebase: ${entrepriseNom} (ID: ${entrepriseId})`);
                     }
                 }
-
-                const postgresData = postgresMap.get(firebaseId);
+                // Cas 2: PostgreSQL a une entreprise mais pas Firebase → synchroniser vers Firebase
+                else if (postgresData && postgresData.entreprise_nom && postgresData.entreprise_nom.trim() !== '') {
+                    entrepriseNom = postgresData.entreprise_nom.trim();
+                    entrepriseId = postgresData.id_entreprise;
+                    console.log(` Entreprise depuis PostgreSQL: ${entrepriseNom} → sera synchronisée vers Firebase`);
+                }
 
                 if (!postgresData) {
                     // Nouveau signalement depuis Firebase → l'ajouter à Postgres
@@ -97,9 +108,17 @@ const syncController = {
                     addedToPostgres++;
                     postgresMap.delete(firebaseId); // Marqué comme traité
                 } else {
-                    // Le signalement existe dans les deux bases → comparer les dates
+                    // Le signalement existe dans les deux bases → comparer et synchroniser
                     const firebaseUpdateTime = new Date(firebaseData.updated_at || firebaseData.date_alert || 0);
                     const postgresUpdateTime = new Date(postgresData.status_update_at || postgresData.date_signalement || 0);
+
+                    // Vérifier si l'entreprise doit être mise à jour dans PostgreSQL
+                    const needsEntrepriseUpdateInPostgres = entrepriseId !== null && 
+                        (postgresData.id_entreprise === null || postgresData.id_entreprise !== entrepriseId);
+
+                    // Vérifier si l'entreprise doit être mise à jour dans Firebase
+                    const firebaseHasNoEntreprise = !firebaseData.concerned_entreprise || firebaseData.concerned_entreprise.trim() === '';
+                    const needsEntrepriseUpdateInFirebase = entrepriseNom && firebaseHasNoEntreprise;
 
                     if (firebaseUpdateTime > postgresUpdateTime) {
                         // Firebase est plus récent → mettre à jour Postgres
@@ -124,12 +143,43 @@ const syncController = {
 
                         await db.collection('road_alerts').doc(firebaseId).update({
                             status: status,
-                            concerned_entreprise: postgresData.entreprise_nom || '',
+                            concerned_entreprise: entrepriseNom || postgresData.entreprise_nom || '',
                             surface: parseFloat(postgresData.surface),
                             budget: parseFloat(postgresData.budget),
                             updated_at: new Date().toISOString()
                         });
                         updatedInFirebase++;
+
+                        // Mettre à jour l'entreprise dans Postgres si nécessaire
+                        if (needsEntrepriseUpdateInPostgres) {
+                            await query(
+                                `UPDATE signalements SET Id_entreprise = $1 WHERE Id_signalements = $2`,
+                                [entrepriseId, postgresData.id_signalements]
+                            );
+                            updatedInPostgres++;
+                        }
+                    } else {
+                        // Les dates sont identiques → synchroniser les entreprises manquantes
+                        
+                        // Mettre à jour PostgreSQL si l'entreprise manque
+                        if (needsEntrepriseUpdateInPostgres) {
+                            await query(
+                                `UPDATE signalements SET Id_entreprise = $1 WHERE Id_signalements = $2`,
+                                [entrepriseId, postgresData.id_signalements]
+                            );
+                            updatedInPostgres++;
+                            console.log(`Entreprise ${entrepriseNom} (ID: ${entrepriseId}) assignée au signalement ${postgresData.id_signalements}`);
+                        }
+
+                        // Mettre à jour Firebase si l'entreprise manque
+                        if (needsEntrepriseUpdateInFirebase) {
+                            await db.collection('road_alerts').doc(firebaseId).update({
+                                concerned_entreprise: entrepriseNom,
+                                updated_at: new Date().toISOString()
+                            });
+                            updatedInFirebase++;
+                            console.log(`Entreprise ${entrepriseNom} synchronisée vers Firebase pour ${firebaseId}`);
+                        }
                     }
                     postgresMap.delete(firebaseId); // Marqué comme traité
                 }
