@@ -32,41 +32,37 @@ export interface User {
 }
 
 // =====================
-// INTERFACES POUR LES TRAVAUX
+// INTERFACES POUR LE SUIVI D'AVANCEMENT (adapté à la base existante)
 // =====================
 
 export interface Task {
   id: number;
-  titre: string;
-  description: string;
+  surface: number;
+  budget: number;
   statut: string;
+  statut_label: string;
   avancement_pourcentage: number;
-  date_debut: string | null;
+  date_signalement: string | null;
+  date_mise_a_jour: string | null;
   date_fin: string | null;
-  date_prevue_fin: string | null;
   duree_jours: number | null;
   duree_heures: number | null;
-  en_retard: boolean | null;
-  ecart_jours: number | null;
-  id_signalement: number | null;
   id_entreprise: number | null;
-  id_responsable: number | null;
   entreprise_nom: string | null;
-  responsable_nom: string | null;
-  created_at: string;
-  updated_at: string;
+  id_users: number | null;
+  utilisateur_nom: string | null;
+  id_firebase: string | null;
 }
 
 export interface TaskStatistics {
-  total_travaux: number;
-  travaux_nouveaux: number;
-  travaux_en_cours: number;
-  travaux_termines: number;
+  total_signalements: number;
+  signalements_nouveaux: number;
+  signalements_en_cours: number;
+  signalements_termines: number;
   avancement_moyen: number;
   delai_moyen_jours: number | null;
   delai_min_jours: number | null;
   delai_max_jours: number | null;
-  travaux_en_retard: number;
   taux_completion: number;
 }
 
@@ -79,24 +75,25 @@ export interface TaskStatutInfo {
 export interface EntrepriseStats {
   id_entreprise: number;
   entreprise_nom: string;
-  total_travaux: number;
-  travaux_termines: number;
+  total_signalements: number;
+  signalements_termines: number;
   avancement_moyen: number;
   delai_moyen_jours: number | null;
 }
 
 export interface PerformanceRow {
-  id_travaux: number;
-  titre: string;
+  id: number;
+  surface: number;
+  budget: number;
   statut: string;
+  statut_label: string;
   avancement_pourcentage: number;
-  date_debut: string | null;
+  date_signalement: string | null;
+  date_mise_a_jour: string | null;
   date_fin: string | null;
-  date_prevue_fin: string | null;
   duree_jours: number | null;
-  en_retard: boolean;
   entreprise_nom: string | null;
-  responsable_nom: string | null;
+  utilisateur_nom: string | null;
 }
 
 export const api = {
@@ -192,57 +189,31 @@ export const api = {
   },
 
   // =====================
-  // API TRAVAUX (TASKS)
+  // API SUIVI D'AVANCEMENT (adapté à la base existante)
   // =====================
 
   /**
-   * Récupérer tous les travaux avec leur avancement
+   * Récupérer tous les signalements avec leur avancement calculé
    */
-  async getTasks(): Promise<Task[]> {
-    const res = await fetch(`${API_URL}/api/tasks`);
+  async getAvancement(): Promise<Task[]> {
+    const res = await fetch(`${API_URL}/api/tasks/avancement`);
     const data = await res.json();
     return data.data || [];
   },
 
   /**
-   * Récupérer un travail par son ID
+   * Récupérer l'avancement d'un signalement par ID
    */
-  async getTaskById(id: number): Promise<Task> {
-    const res = await fetch(`${API_URL}/api/tasks/${id}`);
+  async getAvancementById(id: number): Promise<Task> {
+    const res = await fetch(`${API_URL}/api/tasks/avancement/${id}`);
     const data = await res.json();
     if (data.status === 'error') throw new Error(data.message);
     return data.data;
   },
 
   /**
-   * Créer un nouveau travail
-   */
-  async createTask(task: Partial<Task>): Promise<Task> {
-    const res = await fetch(`${API_URL}/api/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(task),
-    });
-    const data = await res.json();
-    if (data.status === 'error') throw new Error(data.message);
-    return data.data;
-  },
-
-  /**
-   * Mettre à jour un travail
-   */
-  async updateTask(id: number, updates: Partial<Task>): Promise<void> {
-    const res = await fetch(`${API_URL}/api/tasks/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    const data = await res.json();
-    if (data.status === 'error') throw new Error(data.message);
-  },
-
-  /**
-   * Mettre à jour le statut d'un travail (conversion automatique en %)
+   * Mettre à jour le statut d'un signalement (conversion automatique en %)
+   * nouveau=0%, en_cours=50%, termine=100%
    */
   async updateTaskStatus(id: number, statut: string): Promise<void> {
     const res = await fetch(`${API_URL}/api/tasks/${id}/status`, {
@@ -255,36 +226,10 @@ export const api = {
   },
 
   /**
-   * Supprimer un travail
-   */
-  async deleteTask(id: number): Promise<void> {
-    const res = await fetch(`${API_URL}/api/tasks/${id}`, {
-      method: 'DELETE',
-    });
-    const data = await res.json();
-    if (data.status === 'error') throw new Error(data.message);
-  },
-
-  /**
    * Récupérer les statistiques globales de performance
    */
   async getTaskStatistics(): Promise<TaskStatistics> {
     const res = await fetch(`${API_URL}/api/tasks/stats/global`);
-    const data = await res.json();
-    return data.data;
-  },
-
-  /**
-   * Récupérer les statistiques par période
-   */
-  async getTaskStatisticsPeriode(dateDebut?: string, dateFin?: string): Promise<TaskStatistics> {
-    let url = `${API_URL}/api/tasks/stats/periode`;
-    const params = new URLSearchParams();
-    if (dateDebut) params.append('date_debut', dateDebut);
-    if (dateFin) params.append('date_fin', dateFin);
-    if (params.toString()) url += `?${params.toString()}`;
-    
-    const res = await fetch(url);
     const data = await res.json();
     return data.data;
   },

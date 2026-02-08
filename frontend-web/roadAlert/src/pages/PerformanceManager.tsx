@@ -3,11 +3,9 @@ import { IonContent, IonPage, IonToast } from '@ionic/react';
 import { useHistory, Link } from 'react-router-dom';
 import { 
   api, 
-  Task, 
   TaskStatistics, 
   PerformanceRow, 
-  EntrepriseStats,
-  Entreprise 
+  EntrepriseStats
 } from '../utils/api';
 import './PerformanceManager.css';
 
@@ -18,19 +16,10 @@ const PerformanceManager: React.FC = () => {
   const [filteredTasks, setFilteredTasks] = useState<PerformanceRow[]>([]);
   const [statistics, setStatistics] = useState<TaskStatistics | null>(null);
   const [entrepriseStats, setEntrepriseStats] = useState<EntrepriseStats[]>([]);
-  const [entreprises, setEntreprises] = useState<Entreprise[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newTask, setNewTask] = useState({
-    titre: '',
-    description: '',
-    statut: 'nouveau',
-    date_prevue_fin: '',
-    id_entreprise: ''
-  });
   const history = useHistory();
   const [user, setUser] = useState<{ username: string; type_user: string } | null>(null);
 
@@ -61,16 +50,14 @@ const PerformanceManager: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [tasksData, statsData, entrepriseStatsData, entreprisesData] = await Promise.all([
+      const [tasksData, statsData, entrepriseStatsData] = await Promise.all([
         api.getPerformanceTable(),
         api.getTaskStatistics(),
-        api.getTaskStatisticsParEntreprise(),
-        api.getEntreprises()
+        api.getTaskStatisticsParEntreprise()
       ]);
       setTasks(tasksData);
       setStatistics(statsData);
       setEntrepriseStats(entrepriseStatsData);
-      setEntreprises(entreprisesData);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
       setToastMessage('Erreur lors du chargement des données');
@@ -84,16 +71,14 @@ const PerformanceManager: React.FC = () => {
     if (filter === 'all') {
       setFilteredTasks(tasks);
     } else {
-      setFilteredTasks(tasks.filter(t => 
-        t.statut?.toLowerCase().includes(filter.replace('_', ' '))
-      ));
+      setFilteredTasks(tasks.filter(t => t.statut === filter));
     }
   };
 
-  const handleStatusChange = async (taskId: number, newStatus: string) => {
+  const handleStatusChange = async (signalementId: number, newStatus: string) => {
     try {
-      await api.updateTaskStatus(taskId, newStatus);
-      setToastMessage(`Statut mis à jour: ${getStatusLabel(newStatus)}`);
+      await api.updateTaskStatus(signalementId, newStatus);
+      setToastMessage(`Statut mis à jour → ${getStatusLabel(newStatus)} (${getProgressValue(newStatus)}%)`);
       setShowToast(true);
       await loadData();
     } catch (error) {
@@ -102,68 +87,30 @@ const PerformanceManager: React.FC = () => {
     }
   };
 
-  const handleCreateTask = async () => {
-    if (!newTask.titre) {
-      setToastMessage('Le titre est obligatoire');
-      setShowToast(true);
-      return;
-    }
-
-    try {
-      await api.createTask({
-        titre: newTask.titre,
-        description: newTask.description,
-        statut: newTask.statut,
-        date_prevue_fin: newTask.date_prevue_fin || undefined,
-        id_entreprise: newTask.id_entreprise ? parseInt(newTask.id_entreprise) : undefined
-      } as any);
-      setToastMessage('Travail créé avec succès');
-      setShowToast(true);
-      setShowAddModal(false);
-      setNewTask({
-        titre: '',
-        description: '',
-        statut: 'nouveau',
-        date_prevue_fin: '',
-        id_entreprise: ''
-      });
-      await loadData();
-    } catch (error) {
-      setToastMessage('Erreur lors de la création');
-      setShowToast(true);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: number) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer ce travail ?')) return;
-    
-    try {
-      await api.deleteTask(taskId);
-      setToastMessage('Travail supprimé avec succès');
-      setShowToast(true);
-      await loadData();
-    } catch (error) {
-      setToastMessage('Erreur lors de la suppression');
-      setShowToast(true);
-    }
-  };
-
   const getStatusLabel = (status: string): string => {
     switch (status?.toLowerCase()) {
       case 'nouveau': return 'Nouveau';
-      case 'en_cours': 
-      case 'en cours': return 'En cours';
-      case 'termine':
-      case 'terminé': return 'Terminé';
+      case 'en_cours': return 'En cours';
+      case 'termine': return 'Terminé';
       default: return status;
     }
   };
 
+  const getProgressValue = (status: string): number => {
+    switch (status?.toLowerCase()) {
+      case 'nouveau': return 0;
+      case 'en_cours': return 50;
+      case 'termine': return 100;
+      default: return 0;
+    }
+  };
+
   const getStatusClass = (status: string): string => {
-    const s = status?.toLowerCase().replace(' ', '_');
-    if (s === 'termine' || s === 'terminé') return 'status-termine';
-    if (s === 'en_cours' || s === 'en cours') return 'status-en_cours';
-    return 'status-nouveau';
+    switch (status?.toLowerCase()) {
+      case 'termine': return 'status-termine';
+      case 'en_cours': return 'status-en_cours';
+      default: return 'status-nouveau';
+    }
   };
 
   const getProgressClass = (percentage: number): string => {
@@ -183,7 +130,7 @@ const PerformanceManager: React.FC = () => {
   };
 
   const formatDuration = (days: number | null): string => {
-    if (days === null) return '-';
+    if (days === null || days === undefined) return '-';
     if (days < 1) return `${Math.round(days * 24)}h`;
     return `${days.toFixed(1)}j`;
   };
@@ -226,9 +173,9 @@ const PerformanceManager: React.FC = () => {
 
         {/* MAIN CONTENT */}
         <div className="performance-content">
-          <h1 className="page-title">📊 Tableau de Performance</h1>
+          <h1 className="page-title">📊 Suivi d'avancement des travaux</h1>
           <p className="page-subtitle">
-            Suivi de l'avancement des travaux et analyse des délais de traitement
+            Calcul automatique : Nouveau → 0% | En cours → 50% | Terminé → 100% — Adapté à la base existante
           </p>
 
           {/* STATS CARDS */}
@@ -244,28 +191,31 @@ const PerformanceManager: React.FC = () => {
               </div>
               <div className="stat-card">
                 <div className="stat-icon">📋</div>
-                <div className="stat-label">Total travaux</div>
-                <div className="stat-value">{statistics.total_travaux}</div>
+                <div className="stat-label">Total signalements</div>
+                <div className="stat-value">{statistics.total_signalements}</div>
               </div>
               <div className="stat-card success">
                 <div className="stat-icon">✅</div>
-                <div className="stat-label">Terminés</div>
-                <div className="stat-value">{statistics.travaux_termines}</div>
+                <div className="stat-label">Terminés (100%)</div>
+                <div className="stat-value">{statistics.signalements_termines}</div>
               </div>
               <div className="stat-card warning">
                 <div className="stat-icon">🔄</div>
-                <div className="stat-label">En cours</div>
-                <div className="stat-value">{statistics.travaux_en_cours}</div>
+                <div className="stat-label">En cours (50%)</div>
+                <div className="stat-value">{statistics.signalements_en_cours}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-icon">🆕</div>
-                <div className="stat-label">Nouveaux</div>
-                <div className="stat-value">{statistics.travaux_nouveaux}</div>
+                <div className="stat-label">Nouveaux (0%)</div>
+                <div className="stat-value">{statistics.signalements_nouveaux}</div>
               </div>
               <div className="stat-card danger">
-                <div className="stat-icon">⚠️</div>
-                <div className="stat-label">En retard</div>
-                <div className="stat-value">{statistics.travaux_en_retard}</div>
+                <div className="stat-icon">🎯</div>
+                <div className="stat-label">Taux de complétion</div>
+                <div className="stat-value">
+                  {statistics.taux_completion}
+                  <span className="stat-unit">%</span>
+                </div>
               </div>
             </div>
           )}
@@ -275,7 +225,7 @@ const PerformanceManager: React.FC = () => {
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-icon">⏱️</div>
-                <div className="stat-label">Délai moyen</div>
+                <div className="stat-label">Délai moyen de traitement</div>
                 <div className="stat-value">
                   {statistics.delai_moyen_jours !== null 
                     ? statistics.delai_moyen_jours.toFixed(1) 
@@ -303,23 +253,12 @@ const PerformanceManager: React.FC = () => {
                   <span className="stat-unit">jours</span>
                 </div>
               </div>
-              <div className="stat-card">
-                <div className="stat-icon">🎯</div>
-                <div className="stat-label">Taux de complétion</div>
-                <div className="stat-value">
-                  {statistics.taux_completion}
-                  <span className="stat-unit">%</span>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* SECTION: TABLEAU DES TRAVAUX */}
+          {/* SECTION: TABLEAU DES SIGNALEMENTS AVEC AVANCEMENT */}
           <div className="section-header">
-            <h2 className="section-title">📝 Liste des travaux</h2>
-            <button className="add-task-btn" onClick={() => setShowAddModal(true)}>
-              ➕ Nouveau travail
-            </button>
+            <h2 className="section-title">📝 Tableau de suivi d'avancement</h2>
           </div>
 
           {/* FILTERS */}
@@ -334,19 +273,19 @@ const PerformanceManager: React.FC = () => {
               className={`filter-btn ${filter === 'nouveau' ? 'active' : ''}`}
               onClick={() => setFilter('nouveau')}
             >
-              Nouveaux
+              Nouveaux (0%)
             </button>
             <button 
               className={`filter-btn ${filter === 'en_cours' ? 'active' : ''}`}
               onClick={() => setFilter('en_cours')}
             >
-              En cours
+              En cours (50%)
             </button>
             <button 
               className={`filter-btn ${filter === 'termine' ? 'active' : ''}`}
               onClick={() => setFilter('termine')}
             >
-              Terminés
+              Terminés (100%)
             </button>
           </div>
 
@@ -355,29 +294,33 @@ const PerformanceManager: React.FC = () => {
             {filteredTasks.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">📭</div>
-                <div className="empty-state-text">Aucun travail trouvé</div>
+                <div className="empty-state-text">Aucun signalement trouvé</div>
               </div>
             ) : (
               <table className="performance-table">
                 <thead>
                   <tr>
-                    <th>Titre</th>
+                    <th>ID</th>
+                    <th>Surface</th>
+                    <th>Budget</th>
                     <th>Statut</th>
                     <th>Avancement</th>
                     <th>Date début</th>
+                    <th>Date mise à jour</th>
                     <th>Date fin</th>
-                    <th>Durée</th>
-                    <th>Retard</th>
+                    <th>Durée traitement</th>
                     <th>Entreprise</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTasks.map((task) => (
-                    <tr key={task.id_travaux}>
+                    <tr key={task.id}>
                       <td>
-                        <strong>{task.titre}</strong>
+                        <strong>#{task.id}</strong>
                       </td>
+                      <td>{task.surface} m²</td>
+                      <td>{task.budget?.toLocaleString('fr-FR')} Ar</td>
                       <td>
                         <span className={`status-badge ${getStatusClass(task.statut)}`}>
                           {getStatusLabel(task.statut)}
@@ -393,41 +336,28 @@ const PerformanceManager: React.FC = () => {
                           <span className="progress-text">{task.avancement_pourcentage}%</span>
                         </div>
                       </td>
-                      <td>{formatDate(task.date_debut)}</td>
+                      <td>{formatDate(task.date_signalement)}</td>
+                      <td>{formatDate(task.date_mise_a_jour)}</td>
                       <td>{formatDate(task.date_fin)}</td>
                       <td>
                         <span className="duration-value">
                           {formatDuration(task.duree_jours)}
                         </span>
                       </td>
-                      <td>
-                        {task.date_prevue_fin && (
-                          <span className={`retard-badge ${task.en_retard ? 'en-retard' : 'a-temps'}`}>
-                            {task.en_retard ? '⚠️ Retard' : '✅ OK'}
-                          </span>
-                        )}
-                      </td>
                       <td>{task.entreprise_nom || '-'}</td>
                       <td>
-                        {task.statut !== 'termine' && task.statut !== 'terminé' && (
+                        {task.statut !== 'termine' && (
                           <select
                             className="form-select"
                             value={task.statut}
-                            onChange={(e) => handleStatusChange(task.id_travaux, e.target.value)}
+                            onChange={(e) => handleStatusChange(task.id, e.target.value)}
                             style={{ width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                           >
-                            <option value="nouveau">Nouveau</option>
-                            <option value="en_cours">En cours</option>
-                            <option value="termine">Terminé</option>
+                            <option value="nouveau">Nouveau (0%)</option>
+                            <option value="en_cours">En cours (50%)</option>
+                            <option value="termine">Terminé (100%)</option>
                           </select>
                         )}
-                        <button 
-                          className="action-btn delete"
-                          onClick={() => handleDeleteTask(task.id_travaux)}
-                          style={{ marginLeft: '0.5rem' }}
-                        >
-                          🗑️
-                        </button>
                       </td>
                     </tr>
                   ))}
@@ -448,11 +378,11 @@ const PerformanceManager: React.FC = () => {
                     <div className="entreprise-name">{stat.entreprise_nom}</div>
                     <div className="entreprise-stats">
                       <div className="entreprise-stat">
-                        <div className="entreprise-stat-value">{stat.total_travaux}</div>
+                        <div className="entreprise-stat-value">{stat.total_signalements}</div>
                         <div className="entreprise-stat-label">Total</div>
                       </div>
                       <div className="entreprise-stat">
-                        <div className="entreprise-stat-value">{stat.travaux_termines}</div>
+                        <div className="entreprise-stat-value">{stat.signalements_termines}</div>
                         <div className="entreprise-stat-label">Terminés</div>
                       </div>
                       <div className="entreprise-stat">
@@ -472,85 +402,6 @@ const PerformanceManager: React.FC = () => {
             </>
           )}
         </div>
-
-        {/* MODAL: AJOUTER UN TRAVAIL */}
-        {showAddModal && (
-          <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3 className="modal-title">➕ Nouveau travail</h3>
-                <button className="modal-close" onClick={() => setShowAddModal(false)}>×</button>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Titre *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={newTask.titre}
-                  onChange={(e) => setNewTask({ ...newTask, titre: e.target.value })}
-                  placeholder="Titre du travail"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <textarea
-                  className="form-textarea"
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  placeholder="Description détaillée..."
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Statut initial</label>
-                <select
-                  className="form-select"
-                  value={newTask.statut}
-                  onChange={(e) => setNewTask({ ...newTask, statut: e.target.value })}
-                >
-                  <option value="nouveau">Nouveau (0%)</option>
-                  <option value="en_cours">En cours (50%)</option>
-                  <option value="termine">Terminé (100%)</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Date prévue de fin</label>
-                <input
-                  type="datetime-local"
-                  className="form-input"
-                  value={newTask.date_prevue_fin}
-                  onChange={(e) => setNewTask({ ...newTask, date_prevue_fin: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Entreprise</label>
-                <select
-                  className="form-select"
-                  value={newTask.id_entreprise}
-                  onChange={(e) => setNewTask({ ...newTask, id_entreprise: e.target.value })}
-                >
-                  <option value="">-- Sélectionner --</option>
-                  {entreprises.map((e) => (
-                    <option key={e.id} value={e.id}>{e.nom}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-actions">
-                <button className="btn-cancel" onClick={() => setShowAddModal(false)}>
-                  Annuler
-                </button>
-                <button className="btn-submit" onClick={handleCreateTask}>
-                  Créer le travail
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* TOAST */}
         <IonToast

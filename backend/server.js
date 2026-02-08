@@ -37,6 +37,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 // car elles sont maintenant gérées localement dans l'application mobile
 app.use('/api/web', webRoutes);
 
+// Routes suivi d'avancement (adapté à la base existante signalements)
+app.use('/api', taskRoutes);
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
