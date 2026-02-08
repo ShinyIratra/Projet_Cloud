@@ -30,12 +30,7 @@ const Users: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [syncing, setSyncing] = useState(false);
   const [userName, setUserName] = useState('Manager');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newUser, setNewUser] = useState({
-    username: '',
-    email: '',
-    password: ''
-  });
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const history = useHistory();
 
   // Helper pour afficher les toasts
@@ -101,34 +96,6 @@ const Users: React.FC = () => {
     }
   };
 
-  const handleCreateUser = async () => {
-    try {
-      // Validation
-      if (!newUser.username || !newUser.email || !newUser.password) {
-        showToast('Tous les champs sont requis', 'warning');
-        return;
-      }
-
-      if (newUser.username.length < 3) {
-        showToast('Le nom d\'utilisateur doit contenir au moins 3 caractères', 'warning');
-        return;
-      }
-
-      if (newUser.password.length < 6) {
-        showToast('Le mot de passe doit contenir au moins 6 caractères', 'warning');
-        return;
-      }
-
-      await api.createUser(newUser);
-      showToast(`Utilisateur ${newUser.username} créé avec succès !`, 'success');
-      setShowAddModal(false);
-      setNewUser({ username: '', email: '', password: '' });
-      await loadUsers();
-    } catch (error: any) {
-      showToast(error.message || 'Erreur lors de la création de l\'utilisateur', 'error');
-    }
-  };
-
   // Filtrer les utilisateurs selon la recherche
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -185,12 +152,183 @@ const Users: React.FC = () => {
             </div>
             <span className="manager-badge">Manager</span>
           </div>
+          <div className="nav-links" style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              onClick={() => history.push('/home')} 
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: 'transparent', color: '#64748b', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Dashboard
+            </button>
+            <button 
+              onClick={() => history.push('/management')} 
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: 'transparent', color: '#64748b', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Signalements
+            </button>
+            <button 
+              onClick={() => history.push('/performance')} 
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: '#10b981', color: 'white', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <i className="fas fa-chart-line"></i>
+              Performance
+            </button>
+          </div>
           <div className="navbar-right">
             <div className="profile-info">
               <p className="profile-name">{userName}</p>
             </div>
-            <div className="profile-avatar">
-              <i className="fas fa-user-tie"></i>
+            <div style={{ position: 'relative' }}>
+              <div 
+                className="profile-avatar" 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{ cursor: 'pointer' }}
+              >
+                <i className="fas fa-user-tie"></i>
+              </div>
+              {showUserMenu && (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '8px',
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                    padding: '8px',
+                    minWidth: '200px',
+                    zIndex: 1000
+                  }}
+                >
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/home'); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-map-marked-alt"></i> Carte
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/dashboard'); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-chart-pie"></i> Dashboard
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/management'); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-cog"></i> Gestion
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/performance'); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-chart-line"></i> Performance
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/blocked-users'); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-user-shield"></i> Utilisateurs bloqués
+                  </button>
+                  <button 
+                    onClick={() => { localStorage.removeItem('user'); setShowUserMenu(false); history.push('/login'); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#dc2626',
+                      borderRadius: '8px',
+                      marginTop: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-sign-out-alt"></i> Déconnexion
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </nav>
@@ -203,36 +341,14 @@ const Users: React.FC = () => {
               <h1 className="page-title">Gestion des Utilisateurs</h1>
               <p className="page-subtitle">Vue d'ensemble de tous les comptes utilisateurs</p>
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                onClick={() => setShowAddModal(true)}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '0.875rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                }}
-              >
-                <i className="fas fa-user-plus"></i> Ajouter utilisateur
-              </button>
-              <button 
-                className="btn-sync" 
-                onClick={handleSyncUsers}
-                disabled={syncing}
-              >
-                <i className={`fas fa-sync-alt ${syncing ? 'fa-spin' : ''}`}></i>
-                {syncing ? 'Synchronisation...' : 'Sync Firebase'}
-              </button>
-            </div>
+            <button 
+              className="btn-sync" 
+              onClick={handleSyncUsers}
+              disabled={syncing}
+            >
+              <i className={`fas fa-sync-alt ${syncing ? 'fa-spin' : ''}`}></i>
+              {syncing ? 'Synchronisation...' : 'Sync Firebase'}
+            </button>
           </div>
 
           {/* FILTERS & SEARCH */}
@@ -349,117 +465,6 @@ const Users: React.FC = () => {
             </table>
           </div>
         </main>
-
-        {/* MODAL D'AJOUT D'UTILISATEUR */}
-        {showAddModal && (
-          <div className="modal-overlay" onClick={() => setShowAddModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: '24px', padding: '32px', maxWidth: '500px', width: '90%' }}>
-              <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>Nouvel utilisateur</h3>
-                <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#94a3b8', cursor: 'pointer' }}>
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-              <div className="modal-body">
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-                    Nom d'utilisateur *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: johndoe"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="Ex: john@example.com"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-                    Mot de passe *
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Minimum 6 caractères"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-                <p style={{ fontSize: '12px', color: '#64748b', margin: '16px 0 0 0', fontStyle: 'italic' }}>
-                  Tous les comptes créés seront de type "Utilisateur"
-                </p>
-              </div>
-              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                <button 
-                  onClick={() => setShowAddModal(false)}
-                  style={{
-                    padding: '10px 20px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    backgroundColor: 'white',
-                    color: '#64748b'
-                  }}
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={handleCreateUser}
-                  style={{
-                    padding: '10px 20px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <i className="fas fa-save"></i> Créer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* FOOTER NAV */}
         <footer className="footer-nav">

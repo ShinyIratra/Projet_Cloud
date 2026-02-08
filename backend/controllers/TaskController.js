@@ -4,10 +4,27 @@ import ApiModel from '../models/ApiModel.js';
 
 /**
  * TaskController - Contrôleur pour le suivi d'avancement des signalements
- * S'adapte à la base existante (tables signalements + statut_signalement)
- * Calcul automatique : Nouveau → 0%, En cours → 50%, Terminé → 100%
- * Dates enregistrées : date_signalement (début), updated_at (mise à jour/fin)
+ * S'adapte à la base existante :
+ *   - signalements (id_signalements, titre, surface, budget, position, date_signalement, id_entreprise, id_users, id_firebase)
+ *   - historique_statutsignalements (id_historique_statutsignalements, update_at, id_signalements, id_statut_signalement)
+ *   - statut_signalement (id_statut_signalement, code, label, pourcentage)
+ * 
+ * Le statut actuel d'un signalement = dernier enregistrement dans historique_statutsignalements
+ * Si aucun historique → considéré comme 'nouveau' (0%)
  */
+
+// CTE commune pour obtenir le dernier statut de chaque signalement
+const LATEST_STATUS_CTE = `
+    latest_status AS (
+        SELECT DISTINCT ON (h.id_signalements)
+            h.id_signalements,
+            h.id_statut_signalement,
+            h.update_at
+        FROM historique_statutsignalements h
+        ORDER BY h.id_signalements, h.update_at DESC
+    )
+`;
+
 const TaskController = {
 
     // =====================
@@ -20,27 +37,24 @@ const TaskController = {
     async getAllAvancement(req, res) {
         try {
             const result = await query(`
+                WITH ${LATEST_STATUS_CTE}
                 SELECT 
                     s.id_signalements,
+                    s.titre,
                     s.surface,
                     s.budget,
-                    ss.code AS statut_code,
-                    ss.label AS statut_label,
-                    CASE 
-                        WHEN ss.code = 'nouveau' THEN 0
-                        WHEN ss.code = 'en_cours' THEN 50
-                        WHEN ss.code = 'termine' THEN 100
-                        ELSE 0
-                    END AS avancement_pourcentage,
+                    COALESCE(ss.code, 'nouveau') AS statut_code,
+                    COALESCE(ss.label, 'Nouveau') AS statut_label,
+                    COALESCE(ss.pourcentage, 0) AS avancement_pourcentage,
                     s.date_signalement,
-                    s.updated_at,
+                    ls.update_at,
                     CASE 
-                        WHEN ss.code = 'termine' THEN s.updated_at
+                        WHEN ss.code = 'termine' THEN ls.update_at
                         ELSE NULL
                     END AS date_fin,
                     CASE 
-                        WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL 
-                        THEN ROUND(EXTRACT(EPOCH FROM (s.updated_at - s.date_signalement)) / 86400.0, 2)
+                        WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL AND ls.update_at IS NOT NULL
+                        THEN ROUND(EXTRACT(EPOCH FROM (ls.update_at - s.date_signalement)) / 86400.0, 2)
                         ELSE NULL
                     END AS duree_jours,
                     e.nom AS entreprise_nom,
@@ -49,7 +63,8 @@ const TaskController = {
                     s.id_users,
                     s.id_firebase
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.id_statut_signalement = ss.id_statut_signalement
+                LEFT JOIN latest_status ls ON s.id_signalements = ls.id_signalements
+                LEFT JOIN statut_signalement ss ON ls.id_statut_signalement = ss.id_statut_signalement
                 LEFT JOIN entreprise e ON s.id_entreprise = e.id_entreprise
                 LEFT JOIN users u ON s.id_users = u.id_users
                 ORDER BY s.date_signalement DESC
@@ -58,12 +73,13 @@ const TaskController = {
             const signalements = result.rows.map(row => {
                 const task = new TaskModel({
                     id_signalements: row.id_signalements,
+                    titre: row.titre,
                     surface: parseFloat(row.surface) || 0,
                     budget: parseFloat(row.budget) || 0,
                     statut_code: row.statut_code,
                     statut_label: row.statut_label,
                     date_signalement: row.date_signalement,
-                    updated_at: row.updated_at,
+                    updated_at: row.update_at,
                     id_entreprise: row.id_entreprise,
                     entreprise_nom: row.entreprise_nom,
                     id_users: row.id_users,
@@ -92,27 +108,24 @@ const TaskController = {
             const { id } = req.params;
 
             const result = await query(`
+                WITH ${LATEST_STATUS_CTE}
                 SELECT 
                     s.id_signalements,
+                    s.titre,
                     s.surface,
                     s.budget,
-                    ss.code AS statut_code,
-                    ss.label AS statut_label,
-                    CASE 
-                        WHEN ss.code = 'nouveau' THEN 0
-                        WHEN ss.code = 'en_cours' THEN 50
-                        WHEN ss.code = 'termine' THEN 100
-                        ELSE 0
-                    END AS avancement_pourcentage,
+                    COALESCE(ss.code, 'nouveau') AS statut_code,
+                    COALESCE(ss.label, 'Nouveau') AS statut_label,
+                    COALESCE(ss.pourcentage, 0) AS avancement_pourcentage,
                     s.date_signalement,
-                    s.updated_at,
+                    ls.update_at,
                     CASE 
-                        WHEN ss.code = 'termine' THEN s.updated_at
+                        WHEN ss.code = 'termine' THEN ls.update_at
                         ELSE NULL
                     END AS date_fin,
                     CASE 
-                        WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL 
-                        THEN ROUND(EXTRACT(EPOCH FROM (s.updated_at - s.date_signalement)) / 86400.0, 2)
+                        WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL AND ls.update_at IS NOT NULL
+                        THEN ROUND(EXTRACT(EPOCH FROM (ls.update_at - s.date_signalement)) / 86400.0, 2)
                         ELSE NULL
                     END AS duree_jours,
                     e.nom AS entreprise_nom,
@@ -121,7 +134,8 @@ const TaskController = {
                     s.id_users,
                     s.id_firebase
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.id_statut_signalement = ss.id_statut_signalement
+                LEFT JOIN latest_status ls ON s.id_signalements = ls.id_signalements
+                LEFT JOIN statut_signalement ss ON ls.id_statut_signalement = ss.id_statut_signalement
                 LEFT JOIN entreprise e ON s.id_entreprise = e.id_entreprise
                 LEFT JOIN users u ON s.id_users = u.id_users
                 WHERE s.id_signalements = $1
@@ -136,12 +150,13 @@ const TaskController = {
             const row = result.rows[0];
             const task = new TaskModel({
                 id_signalements: row.id_signalements,
+                titre: row.titre,
                 surface: parseFloat(row.surface) || 0,
                 budget: parseFloat(row.budget) || 0,
                 statut_code: row.statut_code,
                 statut_label: row.statut_label,
                 date_signalement: row.date_signalement,
-                updated_at: row.updated_at,
+                updated_at: row.update_at,
                 id_entreprise: row.id_entreprise,
                 entreprise_nom: row.entreprise_nom,
                 id_users: row.id_users,
@@ -161,8 +176,8 @@ const TaskController = {
     },
 
     /**
-     * Mettre à jour le statut d'un signalement (calcul automatique du %)
-     * Met à jour automatiquement updated_at pour enregistrer la date de transition
+     * Mettre à jour le statut d'un signalement
+     * Insère un nouvel enregistrement dans historique_statutsignalements
      */
     async updateStatus(req, res) {
         try {
@@ -175,9 +190,21 @@ const TaskController = {
                 );
             }
 
+            // Vérifier que le signalement existe
+            const sigResult = await query(
+                'SELECT id_signalements FROM signalements WHERE id_signalements = $1',
+                [id]
+            );
+
+            if (sigResult.rows.length === 0) {
+                return res.status(404).json(
+                    new ApiModel('error', null, 'Signalement non trouvé')
+                );
+            }
+
             // Vérifier que le statut existe
             const statutResult = await query(
-                'SELECT id_statut_signalement, code, label FROM statut_signalement WHERE code = $1',
+                'SELECT id_statut_signalement, code, label, pourcentage FROM statut_signalement WHERE code = $1',
                 [statut]
             );
 
@@ -187,30 +214,21 @@ const TaskController = {
                 );
             }
 
-            const { id_statut_signalement } = statutResult.rows[0];
-            const pourcentage = TaskModel.statutToPourcentage(statut);
+            const { id_statut_signalement, pourcentage } = statutResult.rows[0];
 
-            // Mettre à jour le signalement (updated_at enregistre la date de transition)
+            // Insérer dans l'historique (la vraie façon de changer le statut)
             const result = await query(`
-                UPDATE signalements SET
-                    id_statut_signalement = $1,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id_signalements = $2
-                RETURNING *
-            `, [id_statut_signalement, id]);
-
-            if (result.rows.length === 0) {
-                return res.status(404).json(
-                    new ApiModel('error', null, 'Signalement non trouvé')
-                );
-            }
+                INSERT INTO historique_statutsignalements (id_signalements, id_statut_signalement, update_at)
+                VALUES ($1, $2, CURRENT_TIMESTAMP)
+                RETURNING update_at
+            `, [id, id_statut_signalement]);
 
             res.status(200).json(
                 new ApiModel('success', {
                     id: parseInt(id),
                     statut: statut,
                     avancement_pourcentage: pourcentage,
-                    date_mise_a_jour: result.rows[0].updated_at
+                    date_mise_a_jour: result.rows[0].update_at
                 }, `Statut mis à jour: ${pourcentage}% d'avancement`)
             );
         } catch (error) {
@@ -226,45 +244,39 @@ const TaskController = {
     // =====================
 
     /**
-     * Statistiques globales calculées depuis la table signalements
-     * Inclut le délai moyen de traitement
+     * Statistiques globales calculées depuis signalements + historique
      */
     async getStatistiques(req, res) {
         try {
             const result = await query(`
+                WITH ${LATEST_STATUS_CTE}
                 SELECT 
                     COUNT(*) AS total_signalements,
-                    COUNT(CASE WHEN ss.code = 'nouveau' THEN 1 END) AS signalements_nouveaux,
+                    COUNT(CASE WHEN COALESCE(ss.code, 'nouveau') = 'nouveau' THEN 1 END) AS signalements_nouveaux,
                     COUNT(CASE WHEN ss.code = 'en_cours' THEN 1 END) AS signalements_en_cours,
                     COUNT(CASE WHEN ss.code = 'termine' THEN 1 END) AS signalements_termines,
+                    ROUND(AVG(COALESCE(ss.pourcentage, 0))::numeric, 2) AS avancement_moyen,
                     ROUND(AVG(
                         CASE 
-                            WHEN ss.code = 'nouveau' THEN 0
-                            WHEN ss.code = 'en_cours' THEN 50
-                            WHEN ss.code = 'termine' THEN 100
-                            ELSE 0
-                        END
-                    )::numeric, 2) AS avancement_moyen,
-                    ROUND(AVG(
-                        CASE 
-                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL 
-                            THEN EXTRACT(EPOCH FROM (s.updated_at - s.date_signalement)) / 86400.0
+                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL AND ls.update_at IS NOT NULL
+                            THEN EXTRACT(EPOCH FROM (ls.update_at - s.date_signalement)) / 86400.0
                         END
                     )::numeric, 2) AS delai_moyen_jours,
                     ROUND(MIN(
                         CASE 
-                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL 
-                            THEN EXTRACT(EPOCH FROM (s.updated_at - s.date_signalement)) / 86400.0
+                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL AND ls.update_at IS NOT NULL
+                            THEN EXTRACT(EPOCH FROM (ls.update_at - s.date_signalement)) / 86400.0
                         END
                     )::numeric, 2) AS delai_min_jours,
                     ROUND(MAX(
                         CASE 
-                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL 
-                            THEN EXTRACT(EPOCH FROM (s.updated_at - s.date_signalement)) / 86400.0
+                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL AND ls.update_at IS NOT NULL
+                            THEN EXTRACT(EPOCH FROM (ls.update_at - s.date_signalement)) / 86400.0
                         END
                     )::numeric, 2) AS delai_max_jours
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.id_statut_signalement = ss.id_statut_signalement
+                LEFT JOIN latest_status ls ON s.id_signalements = ls.id_signalements
+                LEFT JOIN statut_signalement ss ON ls.id_statut_signalement = ss.id_statut_signalement
             `);
 
             const stats = result.rows[0];
@@ -303,28 +315,23 @@ const TaskController = {
     async getStatistiquesParEntreprise(req, res) {
         try {
             const result = await query(`
+                WITH ${LATEST_STATUS_CTE}
                 SELECT 
                     e.id_entreprise,
                     e.nom AS entreprise_nom,
                     COUNT(s.id_signalements) AS total_signalements,
                     COUNT(CASE WHEN ss.code = 'termine' THEN 1 END) AS signalements_termines,
+                    ROUND(AVG(COALESCE(ss.pourcentage, 0))::numeric, 2) AS avancement_moyen,
                     ROUND(AVG(
                         CASE 
-                            WHEN ss.code = 'nouveau' THEN 0
-                            WHEN ss.code = 'en_cours' THEN 50
-                            WHEN ss.code = 'termine' THEN 100
-                            ELSE 0
-                        END
-                    )::numeric, 2) AS avancement_moyen,
-                    ROUND(AVG(
-                        CASE 
-                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL 
-                            THEN EXTRACT(EPOCH FROM (s.updated_at - s.date_signalement)) / 86400.0
+                            WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL AND ls.update_at IS NOT NULL
+                            THEN EXTRACT(EPOCH FROM (ls.update_at - s.date_signalement)) / 86400.0
                         END
                     )::numeric, 2) AS delai_moyen_jours
                 FROM entreprise e
                 LEFT JOIN signalements s ON e.id_entreprise = s.id_entreprise
-                LEFT JOIN statut_signalement ss ON s.id_statut_signalement = ss.id_statut_signalement
+                LEFT JOIN latest_status ls ON s.id_signalements = ls.id_signalements
+                LEFT JOIN statut_signalement ss ON ls.id_statut_signalement = ss.id_statut_signalement
                 GROUP BY e.id_entreprise, e.nom
                 ORDER BY e.nom
             `);
@@ -350,32 +357,29 @@ const TaskController = {
     },
 
     /**
-     * Tableau de performance détaillé : chaque signalement avec ses dates et durées
+     * Tableau de performance détaillé
      */
     async getPerformanceTable(req, res) {
         try {
             const result = await query(`
+                WITH ${LATEST_STATUS_CTE}
                 SELECT 
                     s.id_signalements,
+                    s.titre,
                     s.surface,
                     s.budget,
-                    ss.code AS statut_code,
-                    ss.label AS statut_label,
-                    CASE 
-                        WHEN ss.code = 'nouveau' THEN 0
-                        WHEN ss.code = 'en_cours' THEN 50
-                        WHEN ss.code = 'termine' THEN 100
-                        ELSE 0
-                    END AS avancement_pourcentage,
+                    COALESCE(ss.code, 'nouveau') AS statut_code,
+                    COALESCE(ss.label, 'Nouveau') AS statut_label,
+                    COALESCE(ss.pourcentage, 0) AS avancement_pourcentage,
                     s.date_signalement,
-                    s.updated_at AS date_mise_a_jour,
+                    ls.update_at AS date_mise_a_jour,
                     CASE 
-                        WHEN ss.code = 'termine' THEN s.updated_at
+                        WHEN ss.code = 'termine' THEN ls.update_at
                         ELSE NULL
                     END AS date_fin,
                     CASE 
-                        WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL 
-                        THEN ROUND(EXTRACT(EPOCH FROM (s.updated_at - s.date_signalement)) / 86400.0, 2)
+                        WHEN ss.code = 'termine' AND s.date_signalement IS NOT NULL AND ls.update_at IS NOT NULL
+                        THEN ROUND(EXTRACT(EPOCH FROM (ls.update_at - s.date_signalement)) / 86400.0, 2)
                         ELSE NULL
                     END AS duree_jours,
                     e.nom AS entreprise_nom,
@@ -383,7 +387,8 @@ const TaskController = {
                     s.id_entreprise,
                     s.id_users
                 FROM signalements s
-                LEFT JOIN statut_signalement ss ON s.id_statut_signalement = ss.id_statut_signalement
+                LEFT JOIN latest_status ls ON s.id_signalements = ls.id_signalements
+                LEFT JOIN statut_signalement ss ON ls.id_statut_signalement = ss.id_statut_signalement
                 LEFT JOIN entreprise e ON s.id_entreprise = e.id_entreprise
                 LEFT JOIN users u ON s.id_users = u.id_users
                 ORDER BY s.date_signalement DESC
@@ -391,6 +396,7 @@ const TaskController = {
 
             const rows = result.rows.map(row => ({
                 id: row.id_signalements,
+                titre: row.titre,
                 surface: parseFloat(row.surface) || 0,
                 budget: parseFloat(row.budget) || 0,
                 statut: row.statut_code,
@@ -421,13 +427,13 @@ const TaskController = {
     async getStatuts(req, res) {
         try {
             const result = await query(`
-                SELECT code, label FROM statut_signalement ORDER BY id_statut_signalement
+                SELECT code, label, pourcentage FROM statut_signalement ORDER BY id_statut_signalement
             `);
 
             const statuts = result.rows.map(row => ({
                 code: row.code,
                 label: row.label,
-                pourcentage: TaskModel.statutToPourcentage(row.code)
+                pourcentage: row.pourcentage
             }));
 
             res.status(200).json(

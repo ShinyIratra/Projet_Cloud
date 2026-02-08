@@ -22,6 +22,7 @@ const PerformanceManager: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const history = useHistory();
   const [user, setUser] = useState<{ username: string; type_user: string } | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Vérifier les permissions au chargement
   useEffect(() => {
@@ -32,7 +33,7 @@ const PerformanceManager: React.FC = () => {
     }
     const parsedUser = JSON.parse(storedUser);
     if (parsedUser.type_user?.toLowerCase() !== 'manager') {
-      alert('⛔ Accès refusé : Cette page est réservée aux managers');
+      alert('Accès refusé : Cette page est réservée aux managers');
       history.push('/home');
       return;
     }
@@ -44,7 +45,11 @@ const PerformanceManager: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    filterTasks();
+    if (filter === 'all') {
+      setFilteredTasks(tasks);
+    } else {
+      setFilteredTasks(tasks.filter(t => t.statut === filter));
+    }
   }, [tasks, filter]);
 
   const loadData = async () => {
@@ -67,21 +72,15 @@ const PerformanceManager: React.FC = () => {
     }
   };
 
-  const filterTasks = () => {
-    if (filter === 'all') {
-      setFilteredTasks(tasks);
-    } else {
-      setFilteredTasks(tasks.filter(t => t.statut === filter));
-    }
-  };
 
-  const handleStatusChange = async (signalementId: number, newStatus: string) => {
+
+  const handleStatusChange = async (taskId: number, newStatus: string) => {
     try {
-      await api.updateTaskStatus(signalementId, newStatus);
-      setToastMessage(`Statut mis à jour → ${getStatusLabel(newStatus)} (${getProgressValue(newStatus)}%)`);
+      await api.updateTaskStatus(taskId, newStatus);
+      setToastMessage(`Statut mis à jour → ${getStatusLabel(newStatus)} (${getStatusPourcentage(newStatus)}%)`);
       setShowToast(true);
       await loadData();
-    } catch (error) {
+    } catch {
       setToastMessage('Erreur lors de la mise à jour du statut');
       setShowToast(true);
     }
@@ -96,7 +95,7 @@ const PerformanceManager: React.FC = () => {
     }
   };
 
-  const getProgressValue = (status: string): number => {
+  const getStatusPourcentage = (status: string): number => {
     switch (status?.toLowerCase()) {
       case 'nouveau': return 0;
       case 'en_cours': return 50;
@@ -106,11 +105,9 @@ const PerformanceManager: React.FC = () => {
   };
 
   const getStatusClass = (status: string): string => {
-    switch (status?.toLowerCase()) {
-      case 'termine': return 'status-termine';
-      case 'en_cours': return 'status-en_cours';
-      default: return 'status-nouveau';
-    }
+    if (status === 'termine') return 'status-termine';
+    if (status === 'en_cours') return 'status-en_cours';
+    return 'status-nouveau';
   };
 
   const getProgressClass = (percentage: number): string => {
@@ -168,15 +165,108 @@ const PerformanceManager: React.FC = () => {
               <div className="profile-label">Connecté en tant que</div>
               <div className="profile-name">{user?.username || 'Manager'}</div>
             </div>
+            <div style={{ position: 'relative' }}>
+              <div 
+                className="profile-avatar" 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', width: '40px', height: '40px', borderRadius: '50%' }}
+              >
+                <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '18px' }}></i>
+              </div>
+              {showUserMenu && (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '8px',
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                    padding: '8px',
+                    minWidth: '200px',
+                    zIndex: 1000
+                  }}
+                >
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/home'); }}
+                    style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#0f172a', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-map-marked-alt"></i> Carte
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/dashboard'); }}
+                    style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#0f172a', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-chart-pie"></i> Dashboard
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/management'); }}
+                    style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#0f172a', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-cog"></i> Gestion
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/blocked-users'); }}
+                    style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#0f172a', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-user-shield"></i> Utilisateurs bloqués
+                  </button>
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/users-list'); }}
+                    style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#0f172a', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-users"></i> Tous les utilisateurs
+                  </button>
+                  <button 
+                    onClick={() => { localStorage.removeItem('user'); setShowUserMenu(false); history.push('/login'); }}
+                    style={{ width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '14px', color: '#dc2626', borderRadius: '8px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-sign-out-alt"></i> Déconnexion
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </nav>
 
         {/* MAIN CONTENT */}
         <div className="performance-content">
-          <h1 className="page-title">📊 Suivi d'avancement des travaux</h1>
+          <h1 className="page-title">Tableau de Performance</h1>
           <p className="page-subtitle">
-            Calcul automatique : Nouveau → 0% | En cours → 50% | Terminé → 100% — Adapté à la base existante
+            Suivi automatique de l'avancement des signalements et analyse des délais de traitement
           </p>
+
+          {/* RÈGLES D'AVANCEMENT */}
+          <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
+            <div className="stat-card" style={{ border: '2px solid #e2e8f0' }}>
+              <div className="stat-icon">🆕</div>
+              <div className="stat-label">Nouveau</div>
+              <div className="stat-value">0<span className="stat-unit">%</span></div>
+            </div>
+            <div className="stat-card" style={{ border: '2px solid #f59e0b' }}>
+              <div className="stat-icon">🔄</div>
+              <div className="stat-label">En cours</div>
+              <div className="stat-value">50<span className="stat-unit">%</span></div>
+            </div>
+            <div className="stat-card" style={{ border: '2px solid #10b981' }}>
+              <div className="stat-icon">✅</div>
+              <div className="stat-label">Terminé</div>
+              <div className="stat-value">100<span className="stat-unit">%</span></div>
+            </div>
+          </div>
 
           {/* STATS CARDS */}
           {statistics && (
@@ -196,20 +286,20 @@ const PerformanceManager: React.FC = () => {
               </div>
               <div className="stat-card success">
                 <div className="stat-icon">✅</div>
-                <div className="stat-label">Terminés (100%)</div>
+                <div className="stat-label">Terminés</div>
                 <div className="stat-value">{statistics.signalements_termines}</div>
               </div>
               <div className="stat-card warning">
                 <div className="stat-icon">🔄</div>
-                <div className="stat-label">En cours (50%)</div>
+                <div className="stat-label">En cours</div>
                 <div className="stat-value">{statistics.signalements_en_cours}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-icon">🆕</div>
-                <div className="stat-label">Nouveaux (0%)</div>
+                <div className="stat-label">Nouveaux</div>
                 <div className="stat-value">{statistics.signalements_nouveaux}</div>
               </div>
-              <div className="stat-card danger">
+              <div className="stat-card highlight">
                 <div className="stat-icon">🎯</div>
                 <div className="stat-label">Taux de complétion</div>
                 <div className="stat-value">
@@ -222,43 +312,48 @@ const PerformanceManager: React.FC = () => {
 
           {/* DÉLAIS STATISTICS */}
           {statistics && (
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-icon">⏱️</div>
-                <div className="stat-label">Délai moyen de traitement</div>
-                <div className="stat-value">
-                  {statistics.delai_moyen_jours !== null 
-                    ? statistics.delai_moyen_jours.toFixed(1) 
-                    : '-'}
-                  <span className="stat-unit">jours</span>
+            <>
+              <div className="section-header">
+                <h2 className="section-title">Statistiques des délais de traitement</h2>
+              </div>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-icon">⏱️</div>
+                  <div className="stat-label">Délai moyen</div>
+                  <div className="stat-value">
+                    {statistics.delai_moyen_jours !== null 
+                      ? statistics.delai_moyen_jours.toFixed(1) 
+                      : '-'}
+                    <span className="stat-unit">jours</span>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon">🚀</div>
+                  <div className="stat-label">Délai minimum</div>
+                  <div className="stat-value">
+                    {statistics.delai_min_jours !== null 
+                      ? statistics.delai_min_jours.toFixed(1) 
+                      : '-'}
+                    <span className="stat-unit">jours</span>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon">🐢</div>
+                  <div className="stat-label">Délai maximum</div>
+                  <div className="stat-value">
+                    {statistics.delai_max_jours !== null 
+                      ? statistics.delai_max_jours.toFixed(1) 
+                      : '-'}
+                    <span className="stat-unit">jours</span>
+                  </div>
                 </div>
               </div>
-              <div className="stat-card">
-                <div className="stat-icon">🚀</div>
-                <div className="stat-label">Délai minimum</div>
-                <div className="stat-value">
-                  {statistics.delai_min_jours !== null 
-                    ? statistics.delai_min_jours.toFixed(1) 
-                    : '-'}
-                  <span className="stat-unit">jours</span>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">🐢</div>
-                <div className="stat-label">Délai maximum</div>
-                <div className="stat-value">
-                  {statistics.delai_max_jours !== null 
-                    ? statistics.delai_max_jours.toFixed(1) 
-                    : '-'}
-                  <span className="stat-unit">jours</span>
-                </div>
-              </div>
-            </div>
+            </>
           )}
 
           {/* SECTION: TABLEAU DES SIGNALEMENTS AVEC AVANCEMENT */}
           <div className="section-header">
-            <h2 className="section-title">📝 Tableau de suivi d'avancement</h2>
+            <h2 className="section-title">Suivi d'avancement des signalements</h2>
           </div>
 
           {/* FILTERS */}
@@ -301,14 +396,15 @@ const PerformanceManager: React.FC = () => {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Surface</th>
-                    <th>Budget</th>
+                    <th>Titre</th>
                     <th>Statut</th>
                     <th>Avancement</th>
                     <th>Date début</th>
                     <th>Date mise à jour</th>
                     <th>Date fin</th>
                     <th>Durée traitement</th>
+                    <th>Surface</th>
+                    <th>Budget</th>
                     <th>Entreprise</th>
                     <th>Actions</th>
                   </tr>
@@ -316,11 +412,8 @@ const PerformanceManager: React.FC = () => {
                 <tbody>
                   {filteredTasks.map((task) => (
                     <tr key={task.id}>
-                      <td>
-                        <strong>#{task.id}</strong>
-                      </td>
-                      <td>{task.surface} m²</td>
-                      <td>{task.budget?.toLocaleString('fr-FR')} Ar</td>
+                      <td><strong>#{task.id}</strong></td>
+                      <td>{task.titre || '-'}</td>
                       <td>
                         <span className={`status-badge ${getStatusClass(task.statut)}`}>
                           {getStatusLabel(task.statut)}
@@ -331,6 +424,7 @@ const PerformanceManager: React.FC = () => {
                           <div className="progress-bar-container">
                             <div 
                               className={`progress-bar-fill ${getProgressClass(task.avancement_pourcentage)}`}
+                              style={{ width: `${task.avancement_pourcentage}%` }}
                             ></div>
                           </div>
                           <span className="progress-text">{task.avancement_pourcentage}%</span>
@@ -344,6 +438,8 @@ const PerformanceManager: React.FC = () => {
                           {formatDuration(task.duree_jours)}
                         </span>
                       </td>
+                      <td>{task.surface} m²</td>
+                      <td>{task.budget?.toLocaleString('fr-FR')} Ar</td>
                       <td>{task.entreprise_nom || '-'}</td>
                       <td>
                         {task.statut !== 'termine' && (
@@ -370,7 +466,7 @@ const PerformanceManager: React.FC = () => {
           {entrepriseStats.length > 0 && (
             <>
               <div className="section-header">
-                <h2 className="section-title">🏢 Performance par entreprise</h2>
+                <h2 className="section-title">Performance par entreprise</h2>
               </div>
               <div className="entreprise-stats-grid">
                 {entrepriseStats.map((stat) => (

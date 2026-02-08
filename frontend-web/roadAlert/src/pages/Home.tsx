@@ -251,10 +251,20 @@ const Home: React.FC = () => {
 
           <div className="navbar-right">
             {isManager && (
-              <button className="btn-sync" onClick={handleSync} disabled={syncing}>
-                <i className={`fas fa-sync-alt ${syncing ? 'fa-spin' : ''}`}></i>
-                <span>{syncing ? 'Sync...' : 'Synchroniser'}</span>
-              </button>
+              <>
+                <button className="btn-sync" onClick={handleSync} disabled={syncing}>
+                  <i className={`fas fa-sync-alt ${syncing ? 'fa-spin' : ''}`}></i>
+                  <span>{syncing ? 'Sync...' : 'Synchroniser'}</span>
+                </button>
+                <button 
+                  className="btn-sync" 
+                  onClick={() => history.push('/performance')}
+                  style={{ background: '#10b981', marginLeft: '0.5rem' }}
+                >
+                  <i className="fas fa-chart-line"></i>
+                  <span>Performance</span>
+                </button>
+              </>
             )}
             {!user && (
               <button 
@@ -362,6 +372,27 @@ const Home: React.FC = () => {
                             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                           >
                             <i className="fas fa-user-shield"></i> Utilisateurs bloqués
+                          </button>
+                          <button 
+                            onClick={() => { setShowUserMenu(false); history.push('/users-list'); }}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              border: 'none',
+                              background: 'transparent',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: '#0f172a',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <i className="fas fa-users"></i> Liste des utilisateurs
                           </button>
                         </>
                       )}

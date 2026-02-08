@@ -19,6 +19,7 @@ class TaskModel {
      */
     constructor(data = {}) {
         this.id = data.id || data.id_signalements || null;
+        this.titre = data.titre || null;
         this.surface = data.surface || null;
         this.budget = data.budget || null;
         this.statut = data.statut || data.statut_code || 'nouveau';
@@ -108,6 +109,7 @@ class TaskModel {
     toJSON() {
         return {
             id: this.id,
+            titre: this.titre,
             surface: this.surface,
             budget: this.budget,
             statut: this.statut,

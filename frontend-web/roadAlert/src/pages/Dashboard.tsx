@@ -56,6 +56,7 @@ const Dashboard: React.FC = () => {
   const [userName, setUserName] = useState('Visiteur');
   const [userType, setUserType] = useState('Visiteur');
   const [isVisitor, setIsVisitor] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -276,11 +277,211 @@ const Dashboard: React.FC = () => {
             <span className="brand-tag">Tana</span>
           </div>
           <div className="navbar-right">
+            {isManager && (
+              <button 
+                onClick={() => history.push('/performance')}
+                style={{ 
+                  padding: '0.5rem 1rem', 
+                  borderRadius: '8px', 
+                  border: 'none', 
+                  background: '#10b981', 
+                  color: 'white', 
+                  fontWeight: 600, 
+                  cursor: 'pointer',
+                  marginRight: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <i className="fas fa-chart-line"></i>
+                <span>Performance</span>
+              </button>
+            )}
             <div className="profile-info">
               <p className="profile-name">{userName}</p>
             </div>
-            <div className="profile-avatar" style={{ background: isManager ? '#3b82f6' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className={`fas ${isManager ? 'fa-user-tie' : 'fa-user'}`} style={{ color: 'white', fontSize: '20px' }}></i>
+            <div style={{ position: 'relative' }}>
+              <div 
+                className="profile-avatar" 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{ background: isManager ? '#3b82f6' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <i className={`fas ${isManager ? 'fa-user-tie' : 'fa-user'}`} style={{ color: 'white', fontSize: '20px' }}></i>
+              </div>
+              {showUserMenu && (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '8px',
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                    padding: '8px',
+                    minWidth: '200px',
+                    zIndex: 1000
+                  }}
+                >
+                  <button 
+                    onClick={() => { setShowUserMenu(false); history.push('/home'); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#0f172a',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <i className="fas fa-map-marked-alt"></i> Carte
+                  </button>
+                  {isManager && (
+                    <>
+                      <button 
+                        onClick={() => { setShowUserMenu(false); history.push('/management'); }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <i className="fas fa-cog"></i> Gestion
+                      </button>
+                      <button 
+                        onClick={() => { setShowUserMenu(false); history.push('/performance'); }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <i className="fas fa-chart-line"></i> Performance
+                      </button>
+                      <button 
+                        onClick={() => { setShowUserMenu(false); history.push('/blocked-users'); }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <i className="fas fa-user-shield"></i> Utilisateurs bloqués
+                      </button>
+                      <button 
+                        onClick={() => { setShowUserMenu(false); history.push('/users-list'); }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: 'none',
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#0f172a',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <i className="fas fa-users"></i> Tous les utilisateurs
+                      </button>
+                    </>
+                  )}
+                  {!isVisitor && (
+                    <button 
+                      onClick={() => { localStorage.removeItem('user'); setShowUserMenu(false); history.push('/login'); }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: 'none',
+                        background: 'transparent',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        color: '#dc2626',
+                        borderRadius: '8px',
+                        marginTop: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <i className="fas fa-sign-out-alt"></i> Déconnexion
+                    </button>
+                  )}
+                  {isVisitor && (
+                    <button 
+                      onClick={() => { setShowUserMenu(false); history.push('/login'); }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: 'none',
+                        background: 'transparent',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        color: '#3b82f6',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <i className="fas fa-sign-in-alt"></i> Se connecter
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </nav>
@@ -295,6 +496,7 @@ const Dashboard: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               {isManager && (
+                <>
                 <button 
                   onClick={() => history.push('/blocked-users')}
                   style={{
@@ -313,6 +515,25 @@ const Dashboard: React.FC = () => {
                 >
                   <i className="fas fa-user-shield"></i> Utilisateurs bloqués
                 </button>
+                <button
+                  onClick={() => history.push('/users-list')}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#eff6ff',
+                    color: '#2563eb',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className="fas fa-users"></i> Tous les utilisateurs
+                </button>
+                </>
               )}
             </div>
           </div>

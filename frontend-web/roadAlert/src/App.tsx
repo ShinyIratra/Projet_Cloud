@@ -62,6 +62,7 @@ const App: React.FC = () => (
         </Route>
         <Route exact path="/performance">
           <PerformanceManager />
+        </Route>
         <Route exact path="/users-list">
           <Users />
         </Route>
