@@ -344,6 +344,32 @@
   margin-bottom: 0.75rem;
 }
 
+.status-completed-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+}
+
+.status-completed-message i {
+  font-size: 2rem;
+  color: #10b981;
+  margin-bottom: 0.5rem;
+}
+
+.status-completed-message p {
+  font-size: 12px;
+  font-weight: 700;
+  color: #059669;
+  margin: 0;
+  text-align: center;
+}
+
 .status-btn {
   display: flex;
   flex-direction: column;

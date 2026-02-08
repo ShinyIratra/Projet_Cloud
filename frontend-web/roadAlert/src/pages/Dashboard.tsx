@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IonContent, IonPage } from '@ionic/react';
+import { IonContent, IonPage, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement } from '../utils/api';
 import {
@@ -53,22 +53,40 @@ const Dashboard: React.FC = () => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const history = useHistory();
   const [isManager, setIsManager] = useState(false);
+  const [userName, setUserName] = useState('Visiteur');
+  const [userType, setUserType] = useState('Visiteur');
+  const [isVisitor, setIsVisitor] = useState(true);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       const user = JSON.parse(storedUser);
       setIsManager(user.type_user?.toLowerCase() === 'manager');
+      setUserName(user.username || 'Utilisateur');
+      setUserType(user.type_user || 'Utilisateur');
+      setIsVisitor(false);
+    } else {
+      setUserName('Visiteur');
+      setUserType('Visiteur');
+      setIsVisitor(true);
     }
     loadData();
   }, []);
 
+  // Recharger les données chaque fois qu'on revient sur cette page
+  useIonViewWillEnter(() => {
+    loadData();
+  });
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await api.getSignalements();
-      setAlerts(data);
-      calculateStats(data);
+      const [signalements, statsData] = await Promise.all([
+        api.getSignalements(),
+        api.getStats()
+      ]);
+      setAlerts(signalements);
+      calculateStats(signalements, statsData);
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
     } finally {
@@ -76,16 +94,13 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const calculateStats = (data: Signalement[]) => {
+  const calculateStats = (data: Signalement[], statsFromApi?: any) => {
     const totalPoints = data.length;
     const totalSurface = data.reduce((sum, alert) => sum + (Number(alert.surface) || 0), 0);
     const totalBudget = data.reduce((sum, alert) => sum + (Number(alert.budget) || 0), 0);
-    const completedCount = data.filter(alert => 
-      alert.status?.toLowerCase().includes('termin')
-    ).length;
-    const progressPercentage = totalPoints > 0 
-      ? Math.round((completedCount / totalPoints) * 100) 
-      : 0;
+    
+    // Utiliser l'avancement calculé par l'API (qui prend en compte nouveau=0%, en_cours=50%, terminé=100%)
+    const progressPercentage = statsFromApi?.avancement || 0;
 
     setStats({ totalPoints, totalSurface, totalBudget, progressPercentage });
 
@@ -214,7 +229,7 @@ const Dashboard: React.FC = () => {
         ticks: {
           font: {
             size: 10,
-            weight: '600',
+            weight: 600,
           },
           color: '#94a3b8',
         },
@@ -226,7 +241,7 @@ const Dashboard: React.FC = () => {
         ticks: {
           font: {
             size: 10,
-            weight: '600',
+            weight: 600,
           },
           color: '#94a3b8',
         },
@@ -262,10 +277,10 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="navbar-right">
             <div className="profile-info">
-              <p className="profile-name">Manager</p>
+              <p className="profile-name">{userName}</p>
             </div>
-            <div className="profile-avatar" style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
+            <div className="profile-avatar" style={{ background: isManager ? '#3b82f6' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className={`fas ${isManager ? 'fa-user-tie' : 'fa-user'}`} style={{ color: 'white', fontSize: '20px' }}></i>
             </div>
           </div>
         </nav>
@@ -455,23 +470,37 @@ const Dashboard: React.FC = () => {
 
         {/* FOOTER */}
         <footer className="dashboard-footer">
-          <div className="footer-nav">
-            <button className="footer-btn" onClick={() => history.push('/home')}>
-              <i className="fas fa-home"></i>
-            </button>
-            <button className="footer-btn" onClick={() => history.push('/home')}>
-              <i className="fas fa-map-marked-alt"></i>
-            </button>
-            <button className="footer-btn disabled">
-              <i className="fas fa-plus-circle"></i>
-            </button>
-            <button className="footer-btn active">
-              <i className="fas fa-chart-line"></i>
-            </button>
-            <button className="footer-btn" onClick={() => history.push('/management')}>
-              <i className="fas fa-cog"></i>
-            </button>
-          </div>
+          {isVisitor ? (
+            <div className="footer-nav" style={{ justifyContent: 'center' }}>
+              <button className="footer-btn" onClick={() => history.push('/home')}>
+                <i className="fas fa-map-marked-alt"></i>
+              </button>
+              <button className="footer-btn active">
+                <i className="fas fa-chart-line"></i>
+              </button>
+            </div>
+          ) : (
+            <div className="footer-nav">
+              <button className="footer-btn" onClick={() => history.push('/home')}>
+                <i className="fas fa-map-marked-alt"></i>
+              </button>
+              <button className="footer-btn active">
+                <i className="fas fa-chart-line"></i>
+              </button>
+              <button className="footer-btn disabled">
+                <i className="fas fa-plus-circle"></i>
+              </button>
+              <button className="footer-btn" onClick={() => history.push('/management')}>
+                <i className="fas fa-tasks"></i>
+              </button>
+              <button className="footer-btn" onClick={() => history.push('/blocked-users')}>
+                <i className="fas fa-user-shield"></i>
+              </button>
+              <button className="footer-btn" onClick={() => history.push('/users-list')}>
+                <i className="fas fa-users-cog"></i>
+              </button>
+            </div>
+          )}
         </footer>
       </IonContent>
     </IonPage>

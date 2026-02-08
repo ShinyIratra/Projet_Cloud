@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IonContent, IonPage, IonToast } from '@ionic/react';
+import { IonContent, IonPage, IonToast, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api } from '../utils/api';
 import './BlockedUsers.css';
@@ -8,14 +8,41 @@ interface BlockedUser {
   id_users: number;
   username: string;
   email: string;
+  blocked_at?: string;
+  reason?: string;
+}
+
+type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface Toast {
+  show: boolean;
+  message: string;
+  type: ToastType;
 }
 
 const BlockedUsers: React.FC = () => {
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userName, setUserName] = useState('Manager');
   const history = useHistory();
+
+  // Helper pour afficher les toasts
+  const showToast = (message: string, type: ToastType = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  // Mapping couleurs pour les toasts
+  const getToastColor = (type: ToastType): string => {
+    switch (type) {
+      case 'success': return 'success';
+      case 'error': return 'danger';
+      case 'warning': return 'warning';
+      case 'info': return 'primary';
+      default: return 'medium';
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -25,39 +52,58 @@ const BlockedUsers: React.FC = () => {
     }
     const user = JSON.parse(storedUser);
     if (user.type_user?.toLowerCase() !== 'manager') {
-      alert('⚠️ Accès refusé : Cette page est réservée aux managers');
-      history.push('/home');
+      showToast('Accès refusé : Cette page est réservée aux managers', 'error');
+      setTimeout(() => history.push('/home'), 2000);
       return;
     }
+    setUserName(user.username || 'Manager');
     loadBlockedUsers();
   }, [history]);
+
+  // Recharger les données chaque fois qu'on revient sur cette page
+  useIonViewWillEnter(() => {
+    loadBlockedUsers();
+  });
 
   const loadBlockedUsers = async () => {
     try {
       setLoading(true);
       const data = await api.getBlockedUsers();
       setBlockedUsers(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors du chargement:', error);
+      showToast(error.message || 'Erreur lors du chargement des utilisateurs bloqués', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUnblock = async (userId: number) => {
+  const handleUnblock = async (userId: number, username: string) => {
     try {
-      const storedUser = localStorage.getItem('user');
-      if (!storedUser) return;
-      const manager = JSON.parse(storedUser);
-      
-      await api.unblockUser(userId, manager.id);
-      setToastMessage('Utilisateur débloqué avec succès');
-      setShowToast(true);
+      await api.unblockUser(userId);
+      showToast(` L'utilisateur ${username} a été débloqué avec succès !`, 'success');
       await loadBlockedUsers();
-    } catch (error) {
-      setToastMessage('Erreur lors du déblocage');
-      setShowToast(true);
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors du déblocage', 'error');
     }
+  };
+
+  // Filtrer les utilisateurs selon la recherche
+  const filteredUsers = blockedUsers.filter(user => 
+    user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Date inconnue';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (loading) {
@@ -79,11 +125,15 @@ const BlockedUsers: React.FC = () => {
         <nav className="glass-nav">
           <div className="navbar-left">
             <div className="navbar-brand">
-              Road<span className="brand-accent">Watch</span>
+              Road<span className="brand-accent">Alert</span>
             </div>
-            <span className="admin-badge">Admin</span>
+            <span className="manager-badge">Manager</span>
           </div>
           <div className="navbar-right">
+            <div className="profile-info">
+              
+              <p className="profile-name">{userName}</p>
+            </div>
             <div className="profile-avatar" style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <i className="fas fa-user-tie" style={{ color: 'white', fontSize: '20px' }}></i>
             </div>
@@ -100,7 +150,12 @@ const BlockedUsers: React.FC = () => {
             </div>
             <div className="search-bar">
               <i className="fas fa-search"></i>
-              <input type="text" placeholder="Rechercher un utilisateur..." />
+              <input 
+                type="text" 
+                placeholder="Rechercher un utilisateur..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </div>
 
@@ -111,8 +166,8 @@ const BlockedUsers: React.FC = () => {
               <p className="stat-box-value blocked">{blockedUsers.length}</p>
             </div>
             <div className="stat-box">
-              <p className="stat-box-label">Total Comptes</p>
-              <p className="stat-box-value">{blockedUsers.length + 10}</p>
+              <p className="stat-box-label">Affichés</p>
+              <p className="stat-box-value">{filteredUsers.length}</p>
             </div>
           </div>
 
@@ -120,14 +175,14 @@ const BlockedUsers: React.FC = () => {
           <div className="users-list">
             <h3 className="list-title">Liste des comptes bloqués</h3>
             
-            {blockedUsers.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <div className="empty-state">
                 <i className="fas fa-check-circle"></i>
-                <p>Aucun utilisateur bloqué</p>
-                <p className="empty-subtitle">Tous les comptes sont actifs</p>
+                <p>{searchQuery ? 'Aucun résultat trouvé' : 'Aucun utilisateur bloqué'}</p>
+                <p className="empty-subtitle">{searchQuery ? 'Essayez une autre recherche' : 'Tous les comptes sont actifs'}</p>
               </div>
             ) : (
-              blockedUsers.map((user) => (
+              filteredUsers.map((user) => (
                 <div key={user.id_users} className="user-card">
                   <div className="user-info">
                     <div className="user-avatar">
@@ -139,7 +194,13 @@ const BlockedUsers: React.FC = () => {
                     <div className="user-details">
                       <h4 className="user-name">{user.username}</h4>
                       <p className="user-email">{user.email}</p>
-                      <span className="uid-pill">UID: {user.id_users}</span>
+                      <span className="uid-pill">ID: {user.id_users}</span>
+                      {user.blocked_at && (
+                        <p className="blocked-date">Bloqué le {formatDate(user.blocked_at)}</p>
+                      )}
+                      {user.reason && (
+                        <p className="blocked-reason">Raison: {user.reason}</p>
+                      )}
                     </div>
                   </div>
                   
@@ -147,7 +208,7 @@ const BlockedUsers: React.FC = () => {
                     <span className="status-blocked">Bloqué</span>
                     <button 
                       className="btn-unlock" 
-                      onClick={() => handleUnblock(user.id_users)}
+                      onClick={() => handleUnblock(user.id_users, user.username)}
                     >
                       <i className="fas fa-unlock"></i> Débloquer
                     </button>
@@ -161,29 +222,33 @@ const BlockedUsers: React.FC = () => {
         {/* FOOTER NAV */}
         <footer className="footer-nav">
           <button className="footer-btn" onClick={() => history.push('/home')}>
-            <i className="fas fa-home"></i>
-          </button>
-          <button className="footer-btn" onClick={() => history.push('/dashboard')}>
-            <i className="fas fa-chart-line"></i>
-          </button>
-          <button className="footer-btn" onClick={() => history.push('/management')}>
-            <i className="fas fa-tasks"></i>
-          </button>
-          <button className="footer-btn active">
-            <i className="fas fa-user-shield"></i>
-          </button>
-          <button className="footer-btn">
-            <i className="fas fa-cog"></i>
-          </button>
+              <i className="fas fa-map-marked-alt"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/dashboard')}>
+              <i className="fas fa-chart-line"></i>
+            </button>
+            <button className="footer-btn disabled">
+              <i className="fas fa-plus-circle"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/management')}>
+              <i className="fas fa-tasks"></i>
+            </button>
+            <button className="footer-btn active">
+              <i className="fas fa-user-shield"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/users-list')}>
+              <i className="fas fa-users-cog"></i>
+            </button>
         </footer>
 
         <IonToast
-          isOpen={showToast}
-          onDidDismiss={() => setShowToast(false)}
-          message={toastMessage}
+          isOpen={toast.show}
+          onDidDismiss={() => setToast({ ...toast, show: false })}
+          message={toast.message}
           duration={3000}
-          position="bottom"
-          color={toastMessage.includes('succès') ? 'success' : 'danger'}
+          position="top"
+          color={getToastColor(toast.type)}
+          cssClass="custom-toast"
         />
       </IonContent>
     </IonPage>

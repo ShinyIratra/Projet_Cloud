@@ -1,3 +1,4 @@
+\c postgres
 DROP DATABASE IF EXISTS roadalerts;
 CREATE DATABASE roadalerts;
 \c roadalerts;
