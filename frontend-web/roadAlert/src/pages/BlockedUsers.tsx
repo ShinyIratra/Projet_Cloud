@@ -20,12 +20,15 @@ interface Toast {
   type: ToastType;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const BlockedUsers: React.FC = () => {
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState('Manager');
+  const [currentPage, setCurrentPage] = useState(1);
   const history = useHistory();
 
   // Helper pour afficher les toasts
@@ -93,6 +96,14 @@ const BlockedUsers: React.FC = () => {
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Paginated users
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Date inconnue';
@@ -182,7 +193,7 @@ const BlockedUsers: React.FC = () => {
                 <p className="empty-subtitle">{searchQuery ? 'Essayez une autre recherche' : 'Tous les comptes sont actifs'}</p>
               </div>
             ) : (
-              filteredUsers.map((user) => (
+              paginatedUsers.map((user) => (
                 <div key={user.id_users} className="user-card">
                   <div className="user-info">
                     <div className="user-avatar">
@@ -217,6 +228,30 @@ const BlockedUsers: React.FC = () => {
               ))
             )}
           </div>
+
+          {/* PAGINATION */}
+          {filteredUsers.length > ITEMS_PER_PAGE && (
+            <div className="pagination">
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <i className="fas fa-chevron-left"></i>
+              </button>
+              <div className="pagination-info">
+                Page {currentPage} / {Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)}
+                <span className="pagination-total">({filteredUsers.length} éléments)</span>
+              </div>
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredUsers.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)}
+              >
+                <i className="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          )}
         </main>
 
         {/* FOOTER NAV */}
@@ -238,6 +273,9 @@ const BlockedUsers: React.FC = () => {
             </button>
             <button className="footer-btn" onClick={() => history.push('/users-list')}>
               <i className="fas fa-users-cog"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/performance')}>
+              <i className="fas fa-tachometer-alt"></i>
             </button>
         </footer>
 

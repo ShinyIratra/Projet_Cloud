@@ -19,7 +19,9 @@ const webSignalementController = {
                     COALESCE(ss.label, 'Nouveau') as status,
                     COALESCE(ss.code, 'nouveau') as status_code,
                     e.nom as entreprise,
-                    hss.update_at as updated_at
+                    hss.update_at as updated_at,
+                    h_debut.date_debut,
+                    h_fin.date_fin
                 FROM signalements s
                 LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
                 LEFT JOIN (
@@ -29,6 +31,20 @@ const webSignalementController = {
                     ORDER BY Id_signalements, update_at DESC
                 ) hss ON s.Id_signalements = hss.Id_signalements
                 LEFT JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
+                LEFT JOIN (
+                    SELECT h.Id_signalements, MIN(h.update_at) AS date_debut
+                    FROM Historique_StatutSignalements h
+                    JOIN statut_signalement st ON h.Id_statut_signalement = st.Id_statut_signalement
+                    WHERE st.code = 'en_cours'
+                    GROUP BY h.Id_signalements
+                ) h_debut ON s.Id_signalements = h_debut.Id_signalements
+                LEFT JOIN (
+                    SELECT h.Id_signalements, MIN(h.update_at) AS date_fin
+                    FROM Historique_StatutSignalements h
+                    JOIN statut_signalement st ON h.Id_statut_signalement = st.Id_statut_signalement
+                    WHERE st.code = 'termine'
+                    GROUP BY h.Id_signalements
+                ) h_fin ON s.Id_signalements = h_fin.Id_signalements
                 ORDER BY s.date_signalement DESC
             `);
             
@@ -385,6 +401,79 @@ const webSignalementController = {
             res.json(new ApiModel('success', result.rows, null));
         } catch (error) {
             res.status(500).json(new ApiModel('error', null, error.message));
+        }
+    },
+
+    async getPerformance(req, res) {
+        try {
+            // 1. Récupérer tous les signalements avec avancement, dates et durées depuis la vue
+            const signalements = await query(`
+                SELECT 
+                    Id_signalements as id,
+                    titre,
+                    surface,
+                    budget,
+                    date_signalement,
+                    COALESCE(statut_code, 'nouveau') as statut_code,
+                    COALESCE(statut_label, 'Nouveau') as statut_label,
+                    COALESCE(avancement_pourcentage, 0) as avancement,
+                    date_dernier_statut,
+                    date_debut,
+                    date_fin,
+                    duree_jours,
+                    duree_heures,
+                    delai_nouveau_encours_jours,
+                    delai_encours_termine_jours,
+                    delai_nouveau_termine_jours,
+                    entreprise_nom,
+                    signale_par
+                FROM v_signalements_avancement
+                ORDER BY date_signalement DESC
+            `);
+
+            // 2. Récupérer les statistiques globales
+            const statsResult = await query(`SELECT * FROM v_statistiques_signalements`);
+
+            // 3. Récupérer les statistiques par entreprise
+            const entrepriseStats = await query(`SELECT * FROM get_statistiques_par_entreprise()`);
+
+            res.json(new ApiModel('success', {
+                signalements: signalements.rows.map(row => ({
+                    ...row,
+                    surface: parseFloat(row.surface) || 0,
+                    budget: parseFloat(row.budget) || 0,
+                    avancement: parseInt(row.avancement) || 0,
+                    duree_jours: row.duree_jours ? parseFloat(row.duree_jours) : null,
+                    duree_heures: row.duree_heures ? parseFloat(row.duree_heures) : null,
+                    delai_nouveau_encours_jours: row.delai_nouveau_encours_jours ? parseFloat(row.delai_nouveau_encours_jours) : null,
+                    delai_encours_termine_jours: row.delai_encours_termine_jours ? parseFloat(row.delai_encours_termine_jours) : null,
+                    delai_nouveau_termine_jours: row.delai_nouveau_termine_jours ? parseFloat(row.delai_nouveau_termine_jours) : null
+                })),
+                stats: statsResult.rows[0] ? {
+                    total_signalements: parseInt(statsResult.rows[0].total_signalements) || 0,
+                    signalements_nouveaux: parseInt(statsResult.rows[0].signalements_nouveaux) || 0,
+                    signalements_en_cours: parseInt(statsResult.rows[0].signalements_en_cours) || 0,
+                    signalements_termines: parseInt(statsResult.rows[0].signalements_termines) || 0,
+                    avancement_moyen: parseFloat(statsResult.rows[0].avancement_moyen) || 0,
+                    budget_total: parseFloat(statsResult.rows[0].budget_total) || 0,
+                    surface_totale: parseFloat(statsResult.rows[0].surface_totale) || 0,
+                    delai_moyen_nouveau_encours: statsResult.rows[0].delai_moyen_nouveau_encours != null ? parseFloat(statsResult.rows[0].delai_moyen_nouveau_encours) : null,
+                    delai_moyen_encours_termine: statsResult.rows[0].delai_moyen_encours_termine != null ? parseFloat(statsResult.rows[0].delai_moyen_encours_termine) : null,
+                    delai_moyen_nouveau_termine: statsResult.rows[0].delai_moyen_nouveau_termine != null ? parseFloat(statsResult.rows[0].delai_moyen_nouveau_termine) : null
+                } : null,
+                entreprises: entrepriseStats.rows.map(row => ({
+                    entreprise_id: row.entreprise_id,
+                    entreprise_nom: row.entreprise_nom,
+                    total_signalements: parseInt(row.total_signalements) || 0,
+                    signalements_termines: parseInt(row.signalements_termines) || 0,
+                    avancement_moyen: parseFloat(row.avancement_moyen) || 0,
+                    budget_total: parseFloat(row.budget_total) || 0,
+                    delai_moyen_jours: parseFloat(row.delai_moyen_jours) || 0
+                }))
+            }, null));
+        } catch (error) {
+            console.error('Erreur getPerformance:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération des données de performance'));
         }
     }
 };

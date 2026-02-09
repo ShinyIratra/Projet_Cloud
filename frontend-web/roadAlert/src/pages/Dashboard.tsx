@@ -40,6 +40,8 @@ interface CompanyStats {
   count: number;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const Dashboard: React.FC = () => {
   const [alerts, setAlerts] = useState<Signalement[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
@@ -51,6 +53,7 @@ const Dashboard: React.FC = () => {
   const [companyStats, setCompanyStats] = useState<CompanyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const [currentPage, setCurrentPage] = useState(1);
   const history = useHistory();
   const [isManager, setIsManager] = useState(false);
   const [userName, setUserName] = useState('Visiteur');
@@ -438,7 +441,7 @@ const Dashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {alerts.map((alert, index) => (
+                  {alerts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((alert, index) => (
                     <tr key={index}>
                       <td>
                         <div className="location-name">{alert.entreprise}</div>
@@ -465,6 +468,30 @@ const Dashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* PAGINATION */}
+            {alerts.length > ITEMS_PER_PAGE && (
+              <div className="pagination">
+                <button 
+                  className="pagination-btn" 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <i className="fas fa-chevron-left"></i>
+                </button>
+                <div className="pagination-info">
+                  Page {currentPage} / {Math.ceil(alerts.length / ITEMS_PER_PAGE)}
+                  <span className="pagination-total">({alerts.length} éléments)</span>
+                </div>
+                <button 
+                  className="pagination-btn" 
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(alerts.length / ITEMS_PER_PAGE), p + 1))}
+                  disabled={currentPage === Math.ceil(alerts.length / ITEMS_PER_PAGE)}
+                >
+                  <i className="fas fa-chevron-right"></i>
+                </button>
+              </div>
+            )}
           </div>
         </main>
 
@@ -477,6 +504,9 @@ const Dashboard: React.FC = () => {
               </button>
               <button className="footer-btn active">
                 <i className="fas fa-chart-line"></i>
+              </button>
+              <button className="footer-btn" onClick={() => history.push('/performance')}>
+                <i className="fas fa-tachometer-alt"></i>
               </button>
             </div>
           ) : (
@@ -498,6 +528,9 @@ const Dashboard: React.FC = () => {
               </button>
               <button className="footer-btn" onClick={() => history.push('/users-list')}>
                 <i className="fas fa-users-cog"></i>
+              </button>
+              <button className="footer-btn" onClick={() => history.push('/performance')}>
+                <i className="fas fa-tachometer-alt"></i>
               </button>
             </div>
           )}

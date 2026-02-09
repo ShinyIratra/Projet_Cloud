@@ -191,6 +191,24 @@ SELECT
         THEN EXTRACT(EPOCH FROM (h_fin.date_fin - h_debut.date_debut)) / 3600.0
         ELSE NULL 
     END AS duree_heures,
+    -- Delai nouveau -> en_cours (date_signalement -> date_debut)
+    CASE 
+        WHEN h_debut.date_debut IS NOT NULL 
+        THEN EXTRACT(EPOCH FROM (h_debut.date_debut - s.date_signalement)) / 86400.0
+        ELSE NULL 
+    END AS delai_nouveau_encours_jours,
+    -- Delai en_cours -> termine (date_debut -> date_fin)
+    CASE 
+        WHEN h_debut.date_debut IS NOT NULL AND h_fin.date_fin IS NOT NULL 
+        THEN EXTRACT(EPOCH FROM (h_fin.date_fin - h_debut.date_debut)) / 86400.0
+        ELSE NULL 
+    END AS delai_encours_termine_jours,
+    -- Delai nouveau -> termine (date_signalement -> date_fin)
+    CASE 
+        WHEN h_fin.date_fin IS NOT NULL 
+        THEN EXTRACT(EPOCH FROM (h_fin.date_fin - s.date_signalement)) / 86400.0
+        ELSE NULL 
+    END AS delai_nouveau_termine_jours,
     e.nom AS entreprise_nom,
     u.username AS signale_par
 FROM signalements s
@@ -231,24 +249,27 @@ SELECT
     ROUND(AVG(ss.pourcentage)::numeric, 2) AS avancement_moyen,
     ROUND(SUM(s.budget)::numeric, 2) AS budget_total,
     ROUND(SUM(s.surface)::numeric, 2) AS surface_totale,
+    -- Delai moyen Nouveau -> En cours (date_signalement -> date_debut)
+    ROUND(AVG(
+        CASE 
+            WHEN h_debut.date_debut IS NOT NULL 
+            THEN EXTRACT(EPOCH FROM (h_debut.date_debut - s.date_signalement)) / 86400.0
+        END
+    )::numeric, 2) AS delai_moyen_nouveau_encours,
+    -- Delai moyen En cours -> Termine (date_debut -> date_fin)
     ROUND(AVG(
         CASE 
             WHEN h_debut.date_debut IS NOT NULL AND h_fin.date_fin IS NOT NULL 
             THEN EXTRACT(EPOCH FROM (h_fin.date_fin - h_debut.date_debut)) / 86400.0
         END
-    )::numeric, 2) AS delai_moyen_jours,
-    ROUND(MIN(
+    )::numeric, 2) AS delai_moyen_encours_termine,
+    -- Delai moyen Nouveau -> Termine (date_signalement -> date_fin)
+    ROUND(AVG(
         CASE 
-            WHEN h_debut.date_debut IS NOT NULL AND h_fin.date_fin IS NOT NULL 
-            THEN EXTRACT(EPOCH FROM (h_fin.date_fin - h_debut.date_debut)) / 86400.0
+            WHEN h_fin.date_fin IS NOT NULL 
+            THEN EXTRACT(EPOCH FROM (h_fin.date_fin - s.date_signalement)) / 86400.0
         END
-    )::numeric, 2) AS delai_min_jours,
-    ROUND(MAX(
-        CASE 
-            WHEN h_debut.date_debut IS NOT NULL AND h_fin.date_fin IS NOT NULL 
-            THEN EXTRACT(EPOCH FROM (h_fin.date_fin - h_debut.date_debut)) / 86400.0
-        END
-    )::numeric, 2) AS delai_max_jours
+    )::numeric, 2) AS delai_moyen_nouveau_termine
 FROM signalements s
 LEFT JOIN (
     SELECT DISTINCT ON (Id_signalements) 

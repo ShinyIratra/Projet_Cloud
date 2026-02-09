@@ -431,6 +431,22 @@ router.patch('/signalements/status', verifyToken, isManager, webSignalementContr
  */
 router.get('/entreprises', webSignalementController.getEntreprises);
 
+/**
+ * @swagger
+ * /api/web/signalements/performance:
+ *   get:
+ *     summary: Données de performance et délais de traitement (Manager uniquement)
+ *     tags: [Web Signalements]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Données de performance récupérées
+ *       403:
+ *         description: Accès refusé (pas manager)
+ */
+router.get('/signalements/performance', verifyToken, isManager, webSignalementController.getPerformance);
+
 // Sync
 /**
  * @swagger

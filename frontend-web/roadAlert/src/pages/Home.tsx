@@ -547,6 +547,18 @@ const Home: React.FC = () => {
           >
             <i className="fas fa-cog"></i>
           </button>
+          <button 
+            className="footer-btn" 
+            onClick={() => {
+              if (!isManager) {
+                showToast(' Accès réservé aux managers. Connectez-vous.', 'warning');
+              } else {
+                history.push('/performance');
+              }
+            }}
+          >
+            <i className="fas fa-tachometer-alt"></i>
+          </button>
         </div>
 
         {/* TOAST NOTIFICATIONS */}

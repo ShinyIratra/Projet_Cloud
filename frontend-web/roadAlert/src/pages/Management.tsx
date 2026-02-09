@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { IonContent, IonPage, IonToast, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api, Signalement } from '../utils/api';
@@ -13,11 +13,14 @@ interface Toast {
   type: ToastType;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const Management: React.FC = () => {
   const [alerts, setAlerts] = useState<Signalement[]>([]);
   const [filteredAlerts, setFilteredAlerts] = useState<Signalement[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [editingAlert, setEditingAlert] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Signalement>>({});
   const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
@@ -32,7 +35,55 @@ const Management: React.FC = () => {
   });
   const [entreprises, setEntreprises] = useState<{id: number, nom: string}[]>([]);
   const [userName, setUserName] = useState('Manager');
+  // State pour le mode "terminer" avec confirmation
+  const [finishingAlert, setFinishingAlert] = useState<number | null>(null);
+  const [finishDate, setFinishDate] = useState<string>('');
+  // State pour le mode "lancer" avec confirmation  
+  const [launchingAlert, setLaunchingAlert] = useState<number | null>(null);
+  const [launchDate, setLaunchDate] = useState<string>('');
   const history = useHistory();
+
+  // Refs for add modal keyboard navigation
+  const addSurfaceRef = useRef<HTMLInputElement>(null);
+  const addBudgetRef = useRef<HTMLInputElement>(null);
+  const addEntrepriseRef = useRef<HTMLSelectElement>(null);
+  const addLatRef = useRef<HTMLInputElement>(null);
+  const addLongRef = useRef<HTMLInputElement>(null);
+  const addSubmitRef = useRef<HTMLButtonElement>(null);
+
+  // Refs for edit form keyboard navigation
+  const editSurfaceRef = useRef<HTMLInputElement>(null);
+  const editBudgetRef = useRef<HTMLInputElement>(null);
+  const editEntrepriseRef = useRef<HTMLSelectElement>(null);
+  const editLatRef = useRef<HTMLInputElement>(null);
+  const editLongRef = useRef<HTMLInputElement>(null);
+  const editSubmitRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-focus first input when modal opens
+  useEffect(() => {
+    if (showAddModal) {
+      setTimeout(() => addSurfaceRef.current?.focus(), 100);
+    }
+  }, [showAddModal]);
+
+  // Auto-focus first input when editing
+  useEffect(() => {
+    if (editingAlert !== null) {
+      setTimeout(() => editSurfaceRef.current?.focus(), 100);
+    }
+  }, [editingAlert]);
+
+  // Handle keyboard navigation
+  const handleKeyNav = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLInputElement | HTMLSelectElement | HTMLButtonElement | null> | null, submitFn?: () => void) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextRef?.current) {
+        nextRef.current.focus();
+      } else if (submitFn) {
+        submitFn();
+      }
+    }
+  };
 
   // Helper pour afficher les toasts
   const showToast = (message: string, type: ToastType = 'success') => {
@@ -73,6 +124,7 @@ const Management: React.FC = () => {
 
   useEffect(() => {
     filterAlerts();
+    setCurrentPage(1); // Reset page when filter changes
   }, [alerts, filter]);
 
   // Recharger les données chaque fois qu'on revient sur cette page
@@ -112,6 +164,61 @@ const Management: React.FC = () => {
     setFilteredAlerts(filtered);
   };
 
+  // Activer le mode "terminer" : affiche date input + zone de confirmation
+  const activateFinishMode = (alertId: number) => {
+    if (finishingAlert === alertId) return;
+    setFinishingAlert(alertId);
+    setFinishDate(new Date().toISOString().split('T')[0]);
+  };
+
+  // Confirmer la fin des travaux
+  const confirmFinish = async (alertId: number) => {
+    if (!finishDate) {
+      showToast('Veuillez sélectionner une date de fin.', 'warning');
+      return;
+    }
+    try {
+      await api.updateStatus(alertId, 'termine');
+      showToast('Signalement marqué comme terminé !', 'success');
+      setFinishingAlert(null);
+      setFinishDate('');
+      await loadAlerts();
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la mise à jour du statut', 'error');
+    }
+  };
+
+  // Activer le mode "lancer" avec confirmation
+  const activateLaunchMode = (alertId: number) => {
+    if (launchingAlert === alertId) return;
+    setLaunchingAlert(alertId);
+    setLaunchDate(new Date().toISOString().split('T')[0]);
+  };
+
+  // Annuler le mode lancement
+  const cancelLaunchMode = () => {
+    setLaunchingAlert(null);
+    setLaunchDate('');
+  };
+
+  // Annuler le mode finish
+  const cancelFinishMode = () => {
+    setFinishingAlert(null);
+    setFinishDate('');
+  };
+
+  // Confirmer le lancement des travaux
+  const confirmLaunch = async (alertId: number) => {
+    try {
+      await api.updateStatus(alertId, 'en_cours');
+      showToast('Les travaux ont démarré !', 'info');
+      setLaunchingAlert(null);
+      await loadAlerts();
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la mise à jour du statut', 'error');
+    }
+  };
+
   const handleStatusChange = async (alertId: number, newStatus: string) => {
     try {
       const statusCode = newStatus === 'En cours' ? 'en_cours' : 'termine';
@@ -145,7 +252,9 @@ const Management: React.FC = () => {
     }
     
     try {
-      await api.updateSignalement(editForm.id, editForm);
+      // Exclure status, status_code, date_signalement, updated_at, date_debut, date_fin pour éviter l'erreur de statut invalide
+      const { status, status_code, date_signalement, updated_at, date_debut, date_fin, ...updateData } = editForm;
+      await api.updateSignalement(editForm.id, updateData as Partial<Signalement>);
       showToast(' Signalement mis à jour avec succès !', 'success');
       setEditingAlert(null);
       setEditForm({});
@@ -215,9 +324,31 @@ const Management: React.FC = () => {
     return 'status-new';
   };
 
+  const isTermine = (alert: Signalement) => {
+    const s = (alert.status_code || alert.status || '').toLowerCase();
+    return s === 'termine' || s.includes('termin');
+  };
+
+  const isEnCours = (alert: Signalement) => {
+    const s = (alert.status_code || alert.status || '').toLowerCase();
+    return s === 'en_cours' || s === 'en cours' || s.includes('cours');
+  };
+
+  const getProgressPercent = (alert: Signalement) => {
+    if (isTermine(alert)) return 100;
+    if (isEnCours(alert)) return 50;
+    return 0;
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const formatDateShort = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   if (loading) {
@@ -293,7 +424,7 @@ const Management: React.FC = () => {
 
           {/* CARDS LIST */}
           <div className="cards-list">
-            {filteredAlerts.map((alert) => (
+            {filteredAlerts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((alert) => (
               <div key={alert.id} className="action-card">
                 {editingAlert === alert.id ? (
                   // EDIT MODE
@@ -309,27 +440,33 @@ const Management: React.FC = () => {
                         <div className="form-group">
                           <label>Surface (m²)</label>
                           <input
+                            ref={editSurfaceRef}
                             type="number"
                             placeholder="Surface en m²"
                             value={editForm.surface || ''}
                             onChange={(e) => setEditForm({ ...editForm, surface: e.target.value ? Number(e.target.value) : undefined })}
+                            onKeyDown={(e) => handleKeyNav(e, editBudgetRef)}
                           />
                         </div>
                         <div className="form-group">
                           <label>Budget (Ar)</label>
                           <input
+                            ref={editBudgetRef}
                             type="number"
                             placeholder="Budget en Ariary"
                             value={editForm.budget || ''}
                             onChange={(e) => setEditForm({ ...editForm, budget: e.target.value ? Number(e.target.value) : undefined })}
+                            onKeyDown={(e) => handleKeyNav(e, editEntrepriseRef)}
                           />
                         </div>
                       </div>
                       <div className="form-group">
                         <label>Entreprise concernée</label>
                         <select
+                          ref={editEntrepriseRef}
                           value={editForm.entreprise || ''}
                           onChange={(e) => setEditForm({ ...editForm, entreprise: e.target.value })}
+                          onKeyDown={(e) => handleKeyNav(e, editLatRef)}
                         >
                           <option value="">Sélectionner une entreprise</option>
                           {entreprises.map((ent) => (
@@ -341,21 +478,25 @@ const Management: React.FC = () => {
                         <div className="form-group">
                           <label>Latitude</label>
                           <input
+                            ref={editLatRef}
                             type="number"
                             step="0.0001"
                             placeholder="Ex: -18.9138"
                             value={editForm.lattitude || ''}
                             onChange={(e) => setEditForm({ ...editForm, lattitude: e.target.value ? Number(e.target.value) : undefined })}
+                            onKeyDown={(e) => handleKeyNav(e, editLongRef)}
                           />
                         </div>
                         <div className="form-group">
                           <label>Longitude</label>
                           <input
+                            ref={editLongRef}
                             type="number"
                             step="0.0001"
                             placeholder="Ex: 47.5361"
                             value={editForm.longitude || ''}
                             onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value ? Number(e.target.value) : undefined })}
+                            onKeyDown={(e) => handleKeyNav(e, editSubmitRef)}
                           />
                         </div>
                       </div>
@@ -363,76 +504,229 @@ const Management: React.FC = () => {
                         <button className="btn-cancel" onClick={cancelEditing}>
                           Annuler
                         </button>
-                        <button className="btn-save" onClick={saveChanges}>
+                        <button ref={editSubmitRef} className="btn-save" onClick={saveChanges}>
                           <i className="fas fa-save"></i> Enregistrer
                         </button>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  // VIEW MODE
-                  <div className="card-content">
-                    <div className="card-left">
-                      <div className="card-image">
-                        <div className="image-placeholder">
-                          <i className="fas fa-road"></i>
+                  // VIEW MODE — Layout like avancement.html
+                  <div className={`card-avancement ${isTermine(alert) ? 'card-termine' : ''}`}>
+                    <div className="avancement-layout">
+                      {/* LEFT: Info Projet */}
+                      <div className="avancement-info">
+                        <div className="card-image">
+                          <div className="image-placeholder">
+                            <i className="fas fa-road"></i>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="avancement-title">{alert.entreprise || 'Non assigné'}</h4>
+                          <p className="avancement-location">
+                            <i className="fas fa-map-marker-alt"></i> Coordonnées : {alert.lattitude}, {alert.longitude}
+                          </p>
+                          {/* Status badge inline */}
+                          <div className={`avancement-badge ${
+                            isTermine(alert) ? 'badge-green' : 
+                            isEnCours(alert) ? 'badge-blue' : 'badge-red'
+                          }`}>
+                            {isTermine(alert) ? 'Terminé (100%)' : 
+                             isEnCours(alert) ? 'En cours (50%)' : 'Nouveau (0%)'}
+                          </div>
+                          <div className="alert-meta">
+                            <div className="meta-item">
+                              Signalé le : <span>{formatDate(alert.date_signalement)}</span>
+                            </div>
+                            <div className="meta-item border">
+                              Surface : <span>{alert.surface.toLocaleString('fr-FR')} m²</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="card-info">
-                        <span className={`status-pill ${getStatusClass(alert.status || '')}`}>
-                          {alert.status}
-                        </span>
-                        <h3 className="alert-title">{alert.entreprise || 'Non assigné'}</h3>
-                        <p className="alert-location">
-                          <i className="fas fa-map-marker-alt"></i> Coordonnées : {alert.lattitude}, {alert.longitude}
-                        </p>
-                        <div className="alert-meta">
-                          <div className="meta-item">
-                            Signalé le : <span>{formatDate(alert.date_signalement)}</span>
+
+                      {/* RIGHT: Timeline Interactive */}
+                      <div className="avancement-timeline">
+                        {/* Lines */}
+                        <div className="tl-line-bg"></div>
+                        <div 
+                          className={`tl-line-fill ${isTermine(alert) ? 'green' : 'blue'}`}
+                          style={{ transform: `scaleX(${getProgressPercent(alert) / 100})` }}
+                        ></div>
+
+                        <div className="tl-steps">
+                          {/* Step 1: Signalé */}
+                          <div className="tl-step">
+                            <div className={`tl-circle ${
+                              isTermine(alert) ? 'done-green' : 
+                              isEnCours(alert) ? 'done-blue' : 'done-blue'
+                            }`}>
+                              <i className="fas fa-exclamation"></i>
+                            </div>
+                            <div className="tl-label">
+                              <p className="tl-name">Signalé</p>
+                              <div className="tl-date-box">
+                                <p>{formatDateShort(alert.date_signalement)}</p>
+                              </div>
+                            </div>
                           </div>
-                          <div className="meta-item border">
-                            Surface : <span>{alert.surface.toLocaleString('fr-FR')} m²</span>
+
+                          {/* Step 2: En travaux */}
+                          <div className="tl-step">
+                            {isEnCours(alert) || isTermine(alert) ? (
+                              <div className={`tl-circle ${
+                                isTermine(alert) ? 'done-green' : 'done-blue'
+                              }`}>
+                                <i className={`fas ${isTermine(alert) ? 'fa-check' : 'fa-tools'}`}></i>
+                              </div>
+                            ) : (
+                              <div 
+                                className={`tl-circle clickable ${launchingAlert === alert.id ? 'active-selection' : ''}`}
+                                onClick={() => activateLaunchMode(alert.id)}
+                                title="Lancer les travaux"
+                              >
+                                <i className="fas fa-tools"></i>
+                              </div>
+                            )}
+                            <div className="tl-label">
+                              <p className="tl-name">En travaux</p>
+                                {/* Date input quand on lance */}
+                                {launchingAlert === alert.id && !isEnCours(alert) && !isTermine(alert) ? (
+                                  <div className="tl-date-input">
+                                    <input 
+                                      type="date" 
+                                      value={launchDate}
+                                      onChange={(e) => setLaunchDate(e.target.value)}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="tl-date-box">
+                                    <p>{formatDateShort(alert.date_debut) || '-- / -- / ----'}</p>
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+
+                          {/* Step 3: Terminé */}
+                          <div className="tl-step">
+                            {isTermine(alert) ? (
+                              <div className="tl-circle done-green">
+                                <i className="fas fa-check"></i>
+                              </div>
+                            ) : (
+                              <div 
+                                className={`tl-circle clickable ${finishingAlert === alert.id ? 'active-selection' : ''}`}
+                                onClick={() => activateFinishMode(alert.id)}
+                                title="Terminer les travaux"
+                              >
+                                <i className="fas fa-flag-checkered"></i>
+                              </div>
+                            )}
+                            <div className="tl-label">
+                              <p className="tl-name">Terminé</p>
+                              {/* Date input when finishing */}
+                              {finishingAlert === alert.id && !isTermine(alert) ? (
+                                <div className="tl-date-input">
+                                  <input 
+                                    type="date" 
+                                    value={finishDate}
+                                    onChange={(e) => setFinishDate(e.target.value)}
+                                  />
+                                </div>
+                              ) : (
+                                <div className={`tl-date-box ${isTermine(alert) ? 'tl-date-green' : ''}`}>
+                                  <p>{formatDateShort(alert.date_fin) || '-- / -- / ----'}</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
+
+                        {/* ZONE DE CONFIRMATION TERMINER */}
+                        {finishingAlert === alert.id && !isTermine(alert) && (
+                          <div className="confirm-zone">
+                            <div className="confirm-zone-left">
+                              <div className="confirm-icon">
+                                <i className="fas fa-calendar-check"></i>
+                              </div>
+                              <div>
+                                <p className="confirm-title">Valider la fin des travaux ?</p>
+                                <p className="confirm-subtitle">Cette action est irréversible.</p>
+                              </div>
+                            </div>
+                            <div className="confirm-actions">
+                              <button className="confirm-btn-cancel" onClick={cancelFinishMode}>
+                                ANNULER
+                              </button>
+                              <button className="confirm-btn" onClick={() => confirmFinish(alert.id)}>
+                                CONFIRMER
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ZONE DE CONFIRMATION LANCER */}
+                        {launchingAlert === alert.id && !isEnCours(alert) && !isTermine(alert) && (
+                          <div className="confirm-zone confirm-zone-blue">
+                            <div className="confirm-zone-left">
+                              <div className="confirm-icon confirm-icon-blue">
+                                <i className="fas fa-hammer"></i>
+                              </div>
+                              <div>
+                                <p className="confirm-title">Lancer les travaux ?</p>
+                                <p className="confirm-subtitle">Le signalement passera en cours.</p>
+                              </div>
+                            </div>
+                            <div className="confirm-actions">
+                              <button className="confirm-btn-cancel" onClick={cancelLaunchMode}>
+                                ANNULER
+                              </button>
+                              <button className="confirm-btn confirm-btn-blue" onClick={() => confirmLaunch(alert.id)}>
+                                CONFIRMER
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="card-right">
-                      <div className="controls-section">
-                        <p className="controls-title">Mettre à jour le statut</p>
-                        {(alert.status?.toLowerCase() === 'termine' || alert.status?.toLowerCase().includes('termin')) ? (
-                          <div className="status-completed-message">
-                            <i className="fas fa-check-circle"></i>
-                            <p>Ce signalement est terminé</p>
-                          </div>
-                        ) : (
-                          <div className="status-buttons">
-                            <button
-                              className="status-btn progress"
-                              onClick={() => handleStatusChange(alert.id, 'En cours')}
-                            >
-                              <i className="fas fa-hammer"></i>
-                              <span>Lancer</span>
-                            </button>
-                            <button
-                              className="status-btn done"
-                              onClick={() => handleStatusChange(alert.id, 'Terminé')}
-                            >
-                              <i className="fas fa-check-circle"></i>
-                              <span>Terminer</span>
-                            </button>
-                          </div>
-                        )}
+                    {/* Edit button under the card — hidden for finished signalements */}
+                    {!isTermine(alert) && (
+                      <div className="avancement-actions">
                         <button className="btn-edit" onClick={() => startEditing(alert)}>
                           <i className="fas fa-edit"></i> Modifier les détails
                         </button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
             ))}
           </div>
+
+          {/* PAGINATION */}
+          {filteredAlerts.length > ITEMS_PER_PAGE && (
+            <div className="pagination">
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <i className="fas fa-chevron-left"></i>
+              </button>
+              <div className="pagination-info">
+                Page {currentPage} / {Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE)}
+                <span className="pagination-total">({filteredAlerts.length} éléments)</span>
+              </div>
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE)}
+              >
+                <i className="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          )}
         </main>
 
         {/* MODAL D'AJOUT */}
@@ -450,27 +744,33 @@ const Management: React.FC = () => {
                   <div className="form-group">
                     <label>Surface (m²) *</label>
                     <input
+                      ref={addSurfaceRef}
                       type="number"
                       placeholder="Surface en m²"
                       value={newSignalement.surface || ''}
                       onChange={(e) => setNewSignalement({ ...newSignalement, surface: e.target.value ? Number(e.target.value) : undefined })}
+                      onKeyDown={(e) => handleKeyNav(e, addBudgetRef)}
                     />
                   </div>
                   <div className="form-group">
                     <label>Budget (Ar) *</label>
                     <input
+                      ref={addBudgetRef}
                       type="number"
                       placeholder="Budget en Ariary"
                       value={newSignalement.budget || ''}
                       onChange={(e) => setNewSignalement({ ...newSignalement, budget: e.target.value ? Number(e.target.value) : undefined })}
+                      onKeyDown={(e) => handleKeyNav(e, addEntrepriseRef)}
                     />
                   </div>
                 </div>
                 <div className="form-group">
                   <label>Entreprise concernée</label>
                   <select
+                    ref={addEntrepriseRef}
                     value={newSignalement.entreprise || ''}
                     onChange={(e) => setNewSignalement({ ...newSignalement, entreprise: e.target.value })}
+                    onKeyDown={(e) => handleKeyNav(e, addLatRef)}
                   >
                     <option value="">Sélectionner une entreprise</option>
                     {entreprises.map((ent) => (
@@ -482,21 +782,25 @@ const Management: React.FC = () => {
                   <div className="form-group">
                     <label>Latitude *</label>
                     <input
+                      ref={addLatRef}
                       type="number"
                       step="0.0001"
                       placeholder="Ex: -18.9138"
                       value={newSignalement.lattitude || ''}
                       onChange={(e) => setNewSignalement({ ...newSignalement, lattitude: e.target.value ? Number(e.target.value) : undefined })}
+                      onKeyDown={(e) => handleKeyNav(e, addLongRef)}
                     />
                   </div>
                   <div className="form-group">
                     <label>Longitude *</label>
                     <input
+                      ref={addLongRef}
                       type="number"
                       step="0.0001"
                       placeholder="Ex: 47.5361"
                       value={newSignalement.longitude || ''}
                       onChange={(e) => setNewSignalement({ ...newSignalement, longitude: e.target.value ? Number(e.target.value) : undefined })}
+                      onKeyDown={(e) => handleKeyNav(e, addSubmitRef)}
                     />
                   </div>
                 </div>
@@ -505,7 +809,7 @@ const Management: React.FC = () => {
                 <button className="btn-cancel" onClick={() => setShowAddModal(false)}>
                   Annuler
                 </button>
-                <button className="btn-save" onClick={createSignalement}>
+                <button ref={addSubmitRef} className="btn-save" onClick={createSignalement}>
                   <i className="fas fa-save"></i> Créer
                 </button>
               </div>
@@ -533,6 +837,9 @@ const Management: React.FC = () => {
             </button>
             <button className="footer-btn" onClick={() => history.push('/users-list')}>
               <i className="fas fa-users-cog"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/performance')}>
+              <i className="fas fa-tachometer-alt"></i>
             </button>
           </div>
         </footer>

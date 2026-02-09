@@ -12,6 +12,8 @@ export interface Signalement {
   status_code: string;
   entreprise: string;
   updated_at?: string;
+  date_debut?: string;
+  date_fin?: string;
 }
 
 export interface Stats {
@@ -225,5 +227,13 @@ export const api = {
     });
     const data = await handleResponse(res, 'Erreur de synchronisation des utilisateurs');
     return data.data || { addedToFirebase: 0, updatedInFirebase: 0, addedToPostgres: 0, updatedInPostgres: 0 };
+  },
+
+  async getPerformance(): Promise<any> {
+    const res = await fetch(`${API_URL}/api/web/signalements/performance`, {
+      headers: getAuthHeaders()
+    });
+    const data = await handleResponse(res, 'Erreur lors du chargement des données de performance');
+    return data.data;
   },
 };
