@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Management from './pages/Management';
 import BlockedUsers from './pages/BlockedUsers';
 import Users from './pages/Users';
+import Performance from './pages/Performance';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -61,6 +62,9 @@ const App: React.FC = () => (
         </Route>
         <Route exact path="/users-list">
           <Users />
+        </Route>
+        <Route exact path="/performance">
+          <Performance />
         </Route>
         <Route exact path="/">
           <Redirect to="/home" />

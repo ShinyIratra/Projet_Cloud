@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { IonContent, IonPage, IonToast, useIonViewWillEnter } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api } from '../utils/api';
@@ -21,6 +21,8 @@ interface Toast {
   type: ToastType;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,12 +33,38 @@ const Users: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [userName, setUserName] = useState('Manager');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isManager, setIsManager] = useState(false);
   const [newUser, setNewUser] = useState({
     username: '',
     email: '',
     password: ''
   });
   const history = useHistory();
+
+  // Refs for keyboard navigation
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-focus first input when modal opens
+  useEffect(() => {
+    if (showAddModal) {
+      setTimeout(() => usernameRef.current?.focus(), 100);
+    }
+  }, [showAddModal]);
+
+  // Handle keyboard navigation
+  const handleKeyNav = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLInputElement | HTMLButtonElement | null> | null) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextRef?.current) {
+        nextRef.current.focus();
+      }
+    }
+  };
 
   // Helper pour afficher les toasts
   const showToast = (message: string, type: ToastType = 'success') => {
@@ -54,20 +82,57 @@ const Users: React.FC = () => {
     }
   };
 
+  // Fonction pour vérifier si le token JWT est encore valide
+  const isTokenValid = (token: string): boolean => {
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp > now;
+    } catch (e) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
-      history.push('/login');
+      showToast('Accès refusé : Connectez-vous en tant que manager', 'error');
+      setTimeout(() => history.push('/home'), 1500);
+      setAuthChecked(true);
       return;
     }
-    const user = JSON.parse(storedUser);
-    if (user.type_user?.toLowerCase() !== 'manager') {
-      showToast('Accès refusé : Cette page est réservée aux managers', 'error');
-      setTimeout(() => history.push('/home'), 2000);
-      return;
+    
+    try {
+      const user = JSON.parse(storedUser);
+      
+      // Vérifier que le token existe et est valide
+      if (!user.token || !isTokenValid(user.token)) {
+        localStorage.removeItem('user');
+        showToast('Session expirée. Veuillez vous reconnecter.', 'error');
+        setTimeout(() => history.push('/home'), 1500);
+        setAuthChecked(true);
+        return;
+      }
+      
+      // Vérifier que c'est un manager
+      if (user.type_user?.toLowerCase() !== 'manager') {
+        showToast('Accès refusé : Cette page est réservée aux managers', 'error');
+        setTimeout(() => history.push('/home'), 1500);
+        setAuthChecked(true);
+        return;
+      }
+      
+      setUserName(user.username || 'Manager');
+      setIsManager(true);
+      setAuthChecked(true);
+      loadUsers();
+    } catch (e) {
+      localStorage.removeItem('user');
+      showToast('Erreur d\'authentification', 'error');
+      setTimeout(() => history.push('/home'), 1500);
+      setAuthChecked(true);
     }
-    setUserName(user.username || 'Manager');
-    loadUsers();
   }, [history]);
 
   // Recharger les données chaque fois qu'on revient sur cette page
@@ -92,7 +157,13 @@ const Users: React.FC = () => {
     setSyncing(true);
     try {
       const result = await api.syncUsersToFirebase();
-      showToast(` ${result.addedToFirebase} utilisateurs ajoutés, ${result.updatedInFirebase} mis à jour`, 'success');
+      const parts = [];
+      if (result.addedToFirebase > 0) parts.push(`${result.addedToFirebase} ajoutés à Firebase`);
+      if (result.updatedInFirebase > 0) parts.push(`${result.updatedInFirebase} mis à jour sur Firebase`);
+      if (result.addedToPostgres > 0) parts.push(`${result.addedToPostgres} ajoutés depuis Firebase`);
+      if (result.updatedInPostgres > 0) parts.push(`${result.updatedInPostgres} mis à jour depuis Firebase`);
+      const msg = parts.length > 0 ? parts.join(', ') : 'Tout est déjà synchronisé';
+      showToast(msg, 'success');
       await loadUsers();
     } catch (error: any) {
       showToast(error.message || 'Erreur lors de la synchronisation', 'error');
@@ -138,6 +209,14 @@ const Users: React.FC = () => {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterType, filterStatus]);
+
+  // Paginated users
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
@@ -161,6 +240,28 @@ const Users: React.FC = () => {
     active: users.filter(u => u.status_code === 'active').length,
     blocked: users.filter(u => u.status_code === 'blocked').length
   };
+
+  // Afficher un loader ou rien tant que l'auth n'est pas vérifiée ou si pas manager
+  if (!authChecked || !isManager) {
+    return (
+      <IonPage className="users-page">
+        <IonContent fullscreen>
+          <div className="loading-container">
+            <div className="spinner"></div>
+          </div>
+          <IonToast
+            isOpen={toast.show}
+            onDidDismiss={() => setToast({ ...toast, show: false })}
+            message={toast.message}
+            duration={3000}
+            position="top"
+            color={getToastColor(toast.type)}
+            cssClass="custom-toast"
+          />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   if (loading) {
     return (
@@ -316,7 +417,7 @@ const Users: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user) => (
+                  paginatedUsers.map((user) => (
                     <tr key={user.id_users}>
                       <td>{user.id_users}</td>
                       <td>
@@ -348,6 +449,30 @@ const Users: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* PAGINATION */}
+          {filteredUsers.length > ITEMS_PER_PAGE && (
+            <div className="pagination">
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <i className="fas fa-chevron-left"></i>
+              </button>
+              <div className="pagination-info">
+                Page {currentPage} / {Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)}
+                <span className="pagination-total">({filteredUsers.length} éléments)</span>
+              </div>
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredUsers.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)}
+              >
+                <i className="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          )}
         </main>
 
         {/* MODAL D'AJOUT D'UTILISATEUR */}
@@ -366,10 +491,12 @@ const Users: React.FC = () => {
                     Nom d'utilisateur *
                   </label>
                   <input
+                    ref={usernameRef}
                     type="text"
                     placeholder="Ex: johndoe"
                     value={newUser.username}
                     onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                    onKeyDown={(e) => handleKeyNav(e, emailRef)}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -385,10 +512,12 @@ const Users: React.FC = () => {
                     Email *
                   </label>
                   <input
+                    ref={emailRef}
                     type="email"
                     placeholder="Ex: john@example.com"
                     value={newUser.email}
                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    onKeyDown={(e) => handleKeyNav(e, passwordRef)}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -404,10 +533,12 @@ const Users: React.FC = () => {
                     Mot de passe *
                   </label>
                   <input
+                    ref={passwordRef}
                     type="password"
                     placeholder="Minimum 6 caractères"
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    onKeyDown={(e) => handleKeyNav(e, submitRef)}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -439,6 +570,7 @@ const Users: React.FC = () => {
                   Annuler
                 </button>
                 <button 
+                  ref={submitRef}
                   onClick={handleCreateUser}
                   style={{
                     padding: '10px 20px',
@@ -480,6 +612,9 @@ const Users: React.FC = () => {
           </button>
           <button className="footer-btn active">
             <i className="fas fa-users-cog"></i>
+          </button>
+          <button className="footer-btn" onClick={() => history.push('/performance')}>
+            <i className="fas fa-tachometer-alt"></i>
           </button>
         </footer>
 

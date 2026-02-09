@@ -24,12 +24,29 @@ const Login: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animationRef = useRef<number | null>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const history = useHistory();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
+
+  // Auto-focus email on mount
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLInputElement | null> | null) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextRef?.current) {
+        nextRef.current.focus();
+      }
+    }
+  };
 
   // Helper pour afficher les toasts
   const showToast = (message: string, type: ToastType = 'success') => {
@@ -188,14 +205,17 @@ const Login: React.FC = () => {
 
             <form onSubmit={handleSubmit}>
               <input 
+                ref={emailRef}
                 type="email" 
                 name="email" 
                 placeholder="Email" 
                 required 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, passwordRef)}
               />
               <input 
+                ref={passwordRef}
                 type="password" 
                 name="password" 
                 placeholder="Mot de passe" 

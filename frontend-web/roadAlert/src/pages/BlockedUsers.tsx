@@ -20,12 +20,17 @@ interface Toast {
   type: ToastType;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const BlockedUsers: React.FC = () => {
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState('Manager');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isManager, setIsManager] = useState(false);
   const history = useHistory();
 
   // Helper pour afficher les toasts
@@ -44,20 +49,57 @@ const BlockedUsers: React.FC = () => {
     }
   };
 
+  // Fonction pour vérifier si le token JWT est encore valide
+  const isTokenValid = (token: string): boolean => {
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp > now;
+    } catch (e) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
-      history.push('/login');
+      showToast('Accès refusé en mode visiteur', 'error');
+      setTimeout(() => history.push('/home'), 1500);
+      setAuthChecked(true);
       return;
     }
-    const user = JSON.parse(storedUser);
-    if (user.type_user?.toLowerCase() !== 'manager') {
-      showToast('Accès refusé : Cette page est réservée aux managers', 'error');
-      setTimeout(() => history.push('/home'), 2000);
-      return;
+    
+    try {
+      const user = JSON.parse(storedUser);
+      
+      // Vérifier que le token existe et est valide
+      if (!user.token || !isTokenValid(user.token)) {
+        localStorage.removeItem('user');
+        showToast('Session expirée. Veuillez vous reconnecter.', 'error');
+        setTimeout(() => history.push('/home'), 1500);
+        setAuthChecked(true);
+        return;
+      }
+      
+      // Vérifier que c'est un manager
+      if (user.type_user?.toLowerCase() !== 'manager') {
+        showToast('Accès refusé : Cette page est réservée aux managers', 'error');
+        setTimeout(() => history.push('/home'), 1500);
+        setAuthChecked(true);
+        return;
+      }
+      
+      setUserName(user.username || 'Manager');
+      setIsManager(true);
+      setAuthChecked(true);
+      loadBlockedUsers();
+    } catch (e) {
+      localStorage.removeItem('user');
+      showToast('Erreur d\'authentification', 'error');
+      setTimeout(() => history.push('/home'), 1500);
+      setAuthChecked(true);
     }
-    setUserName(user.username || 'Manager');
-    loadBlockedUsers();
   }, [history]);
 
   // Recharger les données chaque fois qu'on revient sur cette page
@@ -94,6 +136,14 @@ const BlockedUsers: React.FC = () => {
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Paginated users
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Date inconnue';
     const date = new Date(dateStr);
@@ -105,6 +155,28 @@ const BlockedUsers: React.FC = () => {
       minute: '2-digit'
     });
   };
+
+  // Afficher un loader ou rien tant que l'auth n'est pas vérifiée ou si pas manager
+  if (!authChecked || !isManager) {
+    return (
+      <IonPage className="blocked-users-page">
+        <IonContent fullscreen>
+          <div className="loading-container">
+            <div className="spinner"></div>
+          </div>
+          <IonToast
+            isOpen={toast.show}
+            onDidDismiss={() => setToast({ ...toast, show: false })}
+            message={toast.message}
+            duration={3000}
+            position="top"
+            color={getToastColor(toast.type)}
+            cssClass="custom-toast"
+          />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   if (loading) {
     return (
@@ -182,7 +254,7 @@ const BlockedUsers: React.FC = () => {
                 <p className="empty-subtitle">{searchQuery ? 'Essayez une autre recherche' : 'Tous les comptes sont actifs'}</p>
               </div>
             ) : (
-              filteredUsers.map((user) => (
+              paginatedUsers.map((user) => (
                 <div key={user.id_users} className="user-card">
                   <div className="user-info">
                     <div className="user-avatar">
@@ -217,6 +289,30 @@ const BlockedUsers: React.FC = () => {
               ))
             )}
           </div>
+
+          {/* PAGINATION */}
+          {filteredUsers.length > ITEMS_PER_PAGE && (
+            <div className="pagination">
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <i className="fas fa-chevron-left"></i>
+              </button>
+              <div className="pagination-info">
+                Page {currentPage} / {Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)}
+                <span className="pagination-total">({filteredUsers.length} éléments)</span>
+              </div>
+              <button 
+                className="pagination-btn" 
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredUsers.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)}
+              >
+                <i className="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          )}
         </main>
 
         {/* FOOTER NAV */}
@@ -238,6 +334,9 @@ const BlockedUsers: React.FC = () => {
             </button>
             <button className="footer-btn" onClick={() => history.push('/users-list')}>
               <i className="fas fa-users-cog"></i>
+            </button>
+            <button className="footer-btn" onClick={() => history.push('/performance')}>
+              <i className="fas fa-tachometer-alt"></i>
             </button>
         </footer>
 
