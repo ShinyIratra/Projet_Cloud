@@ -1,12 +1,7 @@
-[
-    {
-        "UID" : 198309283,
-        "type_user": "Utilisateur",
-        "statut": "Blocked"
-    },
-    {
-        "UID" : 198309283,
-        "type_user": "Manager",
-        "statut": "Active"
-    }
-]
+{
+    "UID":,
+    "email":,
+    "failed_login_attempt":,
+    "status":,
+    "type_user":,
+}
