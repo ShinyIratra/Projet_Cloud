@@ -38,34 +38,13 @@ const webAuthController = {
 
             const user = result.rows[0];
 
-            if (user.status === 'blocked') {
-                return res.status(403).json(new ApiModel('error', null, 'Votre compte est bloqué. Veuillez contacter un administrateur.'));
+            // Vérifier que c'est bien un manager (seuls les managers se connectent via le web)
+            if (user.type_user_label?.toLowerCase() !== 'manager') {
+                return res.status(403).json(new ApiModel('error', null, 'Accès refusé. Seuls les managers peuvent se connecter via le web.'));
             }
 
-            const configResult = await query(`SELECT valeur FROM configurations WHERE code = 'MAX_LOGIN_ATTEMPTS'`);
-            const maxAttempts = parseInt(configResult.rows[0]?.valeur || '3');
-
             if (user.password !== password) {
-                // Compter les tentatives échouées récentes (dernières 24h)
-                const attemptsResult = await query(`
-                    SELECT COUNT(*) as count FROM users_status us
-                    JOIN statut_type st ON us.Id_statut_type = st.Id_statut_type
-                    WHERE us.Id_users = $1 
-                    AND st.code = 'blocked'
-                    AND us.update_at > NOW() - INTERVAL '24 hours'
-                `, [user.id_users]);
-
-                const failedAttempts = parseInt(attemptsResult.rows[0]?.count || '0') + 1;
-
-                if (failedAttempts >= maxAttempts) {
-                    await query(`
-                        INSERT INTO users_status (Id_users, Id_statut_type, reason)
-                        VALUES ($1, (SELECT Id_statut_type FROM statut_type WHERE code = 'blocked'), 'Trop de tentatives de connexion échouées')
-                    `, [user.id_users]);
-                    return res.status(403).json(new ApiModel('error', null, `Compte bloqué après ${maxAttempts} tentatives échouées. Contactez un administrateur.`));
-                }
-
-                return res.status(401).json(new ApiModel('error', null, `Mot de passe incorrect. Il vous reste ${maxAttempts - failedAttempts} tentative(s).`));
+                return res.status(401).json(new ApiModel('error', null, 'Mot de passe incorrect'));
             }
 
             // Connexion réussie - Génération du JWT token
@@ -159,7 +138,7 @@ const webAuthController = {
 
             // Vérifier que l'utilisateur existe
             const userCheck = await query(
-                'SELECT Id_users, username FROM users WHERE Id_users = $1',
+                'SELECT Id_users, username, email FROM users WHERE Id_users = $1',
                 [userId]
             );
 
@@ -185,7 +164,7 @@ const webAuthController = {
             `, [userId]);
 
             const username = userCheck.rows[0].username;
-            res.json(new ApiModel('success', { userId, username }, `L'utilisateur ${username} a été débloqué avec succès`));
+            res.json(new ApiModel('success', { userId, username }, `L'utilisateur ${username} a été débloqué avec succès. La mise à jour sera propagée à Firebase lors de la prochaine synchronisation.`));
         } catch (error) {
             console.error('Erreur unblockUser:', error);
             res.status(500).json(new ApiModel('error', null, 'Erreur lors du déblocage de l\'utilisateur'));

@@ -92,7 +92,13 @@ const Users: React.FC = () => {
     setSyncing(true);
     try {
       const result = await api.syncUsersToFirebase();
-      showToast(` ${result.addedToFirebase} utilisateurs ajoutés, ${result.updatedInFirebase} mis à jour`, 'success');
+      const parts = [];
+      if (result.addedToFirebase > 0) parts.push(`${result.addedToFirebase} ajoutés à Firebase`);
+      if (result.updatedInFirebase > 0) parts.push(`${result.updatedInFirebase} mis à jour sur Firebase`);
+      if (result.addedToPostgres > 0) parts.push(`${result.addedToPostgres} ajoutés depuis Firebase`);
+      if (result.updatedInPostgres > 0) parts.push(`${result.updatedInPostgres} mis à jour depuis Firebase`);
+      const msg = parts.length > 0 ? parts.join(', ') : 'Tout est déjà synchronisé';
+      showToast(msg, 'success');
       await loadUsers();
     } catch (error: any) {
       showToast(error.message || 'Erreur lors de la synchronisation', 'error');

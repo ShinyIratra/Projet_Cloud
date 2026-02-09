@@ -280,19 +280,21 @@ const syncController = {
         return this.syncFromFirebase(req, res);
     },
 
-    // Synchroniser les utilisateurs Postgres vers Firebase
+    // Synchronisation bidirectionnelle des utilisateurs entre Postgres et Firebase
+    // Compare updated_at des deux côtés pour déterminer quelle source est la plus récente
     async syncUsersToFirebase(req, res) {
         try {
-            // Récupérer tous les utilisateurs de type "utilisateur" uniquement (pas les managers)
+            // Récupérer tous les utilisateurs de type "utilisateur" depuis Postgres
             const usersResult = await query(`
-                SELECT u.Id_users, u.username, u.email, u.password,
+                SELECT u.Id_users, u.username, u.email,
                        tu.label as type_user,
-                       st.code as status_code
+                       st.code as status_code,
+                       us.update_at as status_update_at
                 FROM users u
                 JOIN type_user tu ON u.Id_type_user = tu.Id_type_user
                 LEFT JOIN (
                     SELECT DISTINCT ON (Id_users) 
-                        Id_users, Id_statut_type
+                        Id_users, Id_statut_type, update_at
                     FROM users_status
                     ORDER BY Id_users, update_at DESC
                 ) us ON u.Id_users = us.Id_users
@@ -300,49 +302,144 @@ const syncController = {
                 WHERE LOWER(tu.label) = 'utilisateur'
             `);
 
+            // Récupérer tous les utilisateurs de Firebase
+            const firebaseSnapshot = await db.collection('users').get();
+
             let addedToFirebase = 0;
             let updatedInFirebase = 0;
+            let addedToPostgres = 0;
+            let updatedInPostgres = 0;
             let errors = [];
 
-            // Traiter chaque utilisateur
+            // Créer un map des utilisateurs Postgres par email
+            const postgresMapByEmail = new Map();
             for (const user of usersResult.rows) {
-                try {
-                    const userId = user.id_users.toString();
-                    const userRef = db.collection('users').doc(userId);
-                    const userDoc = await userRef.get();
+                postgresMapByEmail.set(user.email.toLowerCase(), user);
+            }
 
-                    const userData = {
-                        uid: userId,
-                        email: user.email,
-                        username: user.username,
-                        password: user.password,
-                        type_user: user.type_user,
-                        status: user.status_code || 'active',
-                        synced_at: new Date().toISOString()
-                    };
+            // Set pour tracker les emails déjà traités
+            const processedEmails = new Set();
 
-                    if (!userDoc.exists) {
-                        // Créer l'utilisateur dans Firebase
-                        await userRef.set(userData);
-                        addedToFirebase++;
-                    } else {
-                        // Mettre à jour l'utilisateur dans Firebase
-                        await userRef.update(userData);
+            // 1. Parcourir Firebase → comparer avec Postgres
+            for (const doc of firebaseSnapshot.docs) {
+                const firebaseData = doc.data();
+                const firebaseDocId = doc.id;
+                const firebaseEmail = (firebaseData.email || '').toLowerCase();
+
+                if (!firebaseEmail) continue;
+                processedEmails.add(firebaseEmail);
+
+                const postgresUser = postgresMapByEmail.get(firebaseEmail);
+
+                if (!postgresUser) {
+                    // Utilisateur existe dans Firebase mais pas dans Postgres → l'ajouter à Postgres
+                    try {
+                        const typeUserResult = await query(
+                            `SELECT Id_type_user FROM type_user WHERE LOWER(label) = LOWER($1)`,
+                            [firebaseData.type_user || 'utilisateur']
+                        );
+                        const typeUserId = typeUserResult.rows[0]?.id_type_user || 1;
+
+                        const insertResult = await query(`
+                            INSERT INTO users (username, email, password, Id_type_user)
+                            VALUES ($1, $2, $3, $4)
+                            RETURNING Id_users
+                        `, [
+                            firebaseEmail.split('@')[0],
+                            firebaseEmail,
+                            'firebase_user',
+                            typeUserId
+                        ]);
+
+                        const newUserId = insertResult.rows[0].id_users;
+                        const statusCode = firebaseData.status === 'blocked' ? 'blocked' : 'active';
+                        await query(`
+                            INSERT INTO users_status (Id_users, Id_statut_type, reason)
+                            VALUES ($1, (SELECT Id_statut_type FROM statut_type WHERE code = $2), 'Synchronisé depuis Firebase')
+                        `, [newUserId, statusCode]);
+
+                        addedToPostgres++;
+                    } catch (userError) {
+                        if (userError.code !== '23505') {
+                            console.error(`Erreur ajout utilisateur Firebase ${firebaseEmail}:`, userError);
+                            errors.push(`${firebaseEmail}: ${userError.message}`);
+                        }
+                    }
+                } else {
+                    // L'utilisateur existe dans les deux bases → comparer les données
+                    const firebaseStatus = firebaseData.status || 'active';
+                    const postgresStatus = postgresUser.status_code || 'active';
+
+                    // Si les statuts sont identiques → rien à faire
+                    if (firebaseStatus === postgresStatus) continue;
+
+                    // Les statuts diffèrent → comparer les dates updated_at
+                    const firebaseUpdatedAt = firebaseData.updated_at ? new Date(firebaseData.updated_at) : new Date(0);
+                    const postgresUpdatedAt = postgresUser.status_update_at ? new Date(postgresUser.status_update_at) : new Date(0);
+
+                    if (postgresUpdatedAt > firebaseUpdatedAt) {
+                        // Postgres est plus récent → mettre à jour Firebase
+                        await db.collection('users').doc(firebaseDocId).update({
+                            status: postgresStatus,
+                            failed_login_attempt: postgresStatus === 'active' ? 0 : (firebaseData.failed_login_attempt || 0),
+                            updated_at: postgresUpdatedAt.toISOString()
+                        });
                         updatedInFirebase++;
+                        console.log(`Firebase mis à jour pour ${firebaseEmail}: ${firebaseStatus} → ${postgresStatus} (Postgres plus récent)`);
+                    } else if (firebaseUpdatedAt > postgresUpdatedAt) {
+                        // Firebase est plus récent → mettre à jour Postgres
+                        const newStatusCode = firebaseStatus === 'blocked' ? 'blocked' : 'active';
+                        await query(`
+                            INSERT INTO users_status (Id_users, Id_statut_type, reason)
+                            VALUES ($1, (SELECT Id_statut_type FROM statut_type WHERE code = $2), $3)
+                        `, [
+                            postgresUser.id_users,
+                            newStatusCode,
+                            `Synchronisé depuis Firebase (${firebaseStatus})`
+                        ]);
+                        updatedInPostgres++;
+                        console.log(`Postgres mis à jour pour ${firebaseEmail}: ${postgresStatus} → ${newStatusCode} (Firebase plus récent)`);
+                    }
+                    // Si les dates sont égales et statuts différents → situation rare, on ne touche à rien
+                }
+            }
+
+            // 2. Parcourir Postgres → envoyer à Firebase ceux qui n'existent pas encore
+            for (const user of usersResult.rows) {
+                const email = user.email.toLowerCase();
+                if (processedEmails.has(email)) continue;
+
+                try {
+                    const existingSnapshot = await db.collection('users')
+                        .where('email', '==', email)
+                        .get();
+
+                    if (existingSnapshot.empty) {
+                        const userRef = db.collection('users').doc();
+                        await userRef.set({
+                            email: email,
+                            failed_login_attempt: 0,
+                            status: user.status_code || 'active',
+                            type_user: user.type_user,
+                            updated_at: user.status_update_at ? new Date(user.status_update_at).toISOString() : new Date().toISOString()
+                        });
+                        addedToFirebase++;
                     }
                 } catch (userError) {
-                    console.error(`Erreur pour l'utilisateur ${user.email}:`, userError);
-                    errors.push(`${user.email}: ${userError.message}`);
+                    console.error(`Erreur sync vers Firebase pour ${email}:`, userError);
+                    errors.push(`${email}: ${userError.message}`);
                 }
             }
 
             const message = errors.length > 0
-                ? `Synchronisation terminée avec ${errors.length} erreur(s). ${addedToFirebase} ajoutés, ${updatedInFirebase} mis à jour.`
-                : `Synchronisation réussie ! ${addedToFirebase} utilisateurs ajoutés, ${updatedInFirebase} mis à jour.`;
+                ? `Synchronisation terminée avec ${errors.length} erreur(s). Firebase: +${addedToFirebase} ↑${updatedInFirebase} | Postgres: +${addedToPostgres} ↑${updatedInPostgres}`
+                : `Synchronisation réussie ! Firebase: +${addedToFirebase} ajoutés, ${updatedInFirebase} mis à jour | Postgres: +${addedToPostgres} ajoutés, ${updatedInPostgres} mis à jour`;
 
             res.json(new ApiModel('success', {
                 addedToFirebase,
                 updatedInFirebase,
+                addedToPostgres,
+                updatedInPostgres,
                 errors: errors.length > 0 ? errors : undefined
             }, message));
 
