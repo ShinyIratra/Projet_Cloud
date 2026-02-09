@@ -60,14 +60,44 @@ const Dashboard: React.FC = () => {
   const [userType, setUserType] = useState('Visiteur');
   const [isVisitor, setIsVisitor] = useState(true);
 
+  // Fonction pour vérifier si le token JWT est encore valide
+  const isTokenValid = (token: string): boolean => {
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp > now;
+    } catch (e) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      const user = JSON.parse(storedUser);
-      setIsManager(user.type_user?.toLowerCase() === 'manager');
-      setUserName(user.username || 'Utilisateur');
-      setUserType(user.type_user || 'Utilisateur');
-      setIsVisitor(false);
+      try {
+        const user = JSON.parse(storedUser);
+        // Vérifier que le token existe et est valide
+        if (user.token && isTokenValid(user.token)) {
+          setIsManager(user.type_user?.toLowerCase() === 'manager');
+          setUserName(user.username || 'Utilisateur');
+          setUserType(user.type_user || 'Utilisateur');
+          setIsVisitor(false);
+        } else {
+          // Token absent ou expiré -> mode visiteur
+          localStorage.removeItem('user');
+          setUserName('Visiteur');
+          setUserType('Visiteur');
+          setIsVisitor(true);
+          setIsManager(false);
+        }
+      } catch (e) {
+        localStorage.removeItem('user');
+        setUserName('Visiteur');
+        setUserType('Visiteur');
+        setIsVisitor(true);
+        setIsManager(false);
+      }
     } else {
       setUserName('Visiteur');
       setUserType('Visiteur');
@@ -504,9 +534,6 @@ const Dashboard: React.FC = () => {
               </button>
               <button className="footer-btn active">
                 <i className="fas fa-chart-line"></i>
-              </button>
-              <button className="footer-btn" onClick={() => history.push('/performance')}>
-                <i className="fas fa-tachometer-alt"></i>
               </button>
             </div>
           ) : (

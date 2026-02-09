@@ -22,6 +22,8 @@ const Performance: React.FC = () => {
   const [filterEntreprise, setFilterEntreprise] = useState<string>('all');
   const [filterStatut, setFilterStatut] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isManager, setIsManager] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const history = useHistory();
 
   const showToast = (message: string, type: ToastType = 'success') => {
@@ -38,20 +40,57 @@ const Performance: React.FC = () => {
     }
   };
 
+  // Fonction pour vérifier si le token JWT est encore valide
+  const isTokenValid = (token: string): boolean => {
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp > now;
+    } catch (e) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
-      history.push('/login');
+      showToast('Accès refusé en mode visiteur', 'error');
+      setTimeout(() => history.push('/home'), 1500);
+      setAuthChecked(true);
       return;
     }
-    const user = JSON.parse(storedUser);
-    if (user.type_user?.toLowerCase() !== 'manager') {
-      showToast('Accès refusé : Cette page est réservée aux managers', 'error');
-      setTimeout(() => history.push('/home'), 2000);
-      return;
+    
+    try {
+      const user = JSON.parse(storedUser);
+      
+      // Vérifier que le token existe et est valide
+      if (!user.token || !isTokenValid(user.token)) {
+        localStorage.removeItem('user');
+        showToast('Session expirée. Veuillez vous reconnecter.', 'error');
+        setTimeout(() => history.push('/home'), 1500);
+        setAuthChecked(true);
+        return;
+      }
+      
+      // Vérifier que c'est un manager
+      if (user.type_user?.toLowerCase() !== 'manager') {
+        showToast('Accès refusé : Cette page est réservée aux managers', 'error');
+        setTimeout(() => history.push('/home'), 1500);
+        setAuthChecked(true);
+        return;
+      }
+      
+      setUserName(user.username || 'Manager');
+      setIsManager(true);
+      setAuthChecked(true);
+      loadData();
+    } catch (e) {
+      localStorage.removeItem('user');
+      showToast('Erreur d\'authentification', 'error');
+      setTimeout(() => history.push('/home'), 1500);
+      setAuthChecked(true);
     }
-    setUserName(user.username || 'Manager');
-    loadData();
   }, [history]);
 
   useIonViewWillEnter(() => {
@@ -145,6 +184,28 @@ const Performance: React.FC = () => {
   // Extraire dynamiquement les entreprises et statuts uniques
   const uniqueEntreprises = Array.from(new Set((data?.signalements || []).map((s: any) => s.entreprise_nom).filter(Boolean))) as string[];
   const uniqueStatuts = Array.from(new Set((data?.signalements || []).map((s: any) => s.statut_code).filter(Boolean))) as string[];
+
+  // Afficher un loader ou rien tant que l'auth n'est pas vérifiée ou si pas manager
+  if (!authChecked || !isManager) {
+    return (
+      <IonPage className="performance-page">
+        <IonContent fullscreen>
+          <div className="loading-container">
+            <div className="spinner"></div>
+          </div>
+          <IonToast
+            isOpen={toast.show}
+            onDidDismiss={() => setToast({ ...toast, show: false })}
+            message={toast.message}
+            duration={3000}
+            position="top"
+            color={getToastColor(toast.type)}
+            cssClass="custom-toast"
+          />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   if (loading) {
     return (
