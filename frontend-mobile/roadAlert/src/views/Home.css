@@ -21,19 +21,15 @@
   width: 100%;
 }
 
-/* Effet de flou et transparence type iOS */
+/* Effet de transparence */
 .glass-morphism {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.95);
 }
 
-/* Style navbar recherche comme formulaire_mobile.html */
+/* Style navbar recherche */
 .glass-nav-search {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(226, 232, 240, 0.5);
 }
 
 /* Bottom Sheet - Design Mobile */
@@ -98,6 +94,33 @@
   border: none;
 }
 
+/* Marker central en mode création */
+.center-marker {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  z-index: 1500;
+  pointer-events: none;
+}
+
+.marker-pin-center {
+  width: 40px;
+  height: 40px;
+  background: #ef4444;
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.marker-pin-center i {
+  color: white;
+  font-size: 18px;
+}
+
 .action-button:active {
   transform: scale(0.95);
 }
@@ -110,15 +133,33 @@
 .marker-pin {
   width: 34px;
   height: 34px;
-  background: #3b82f6;
+  background: #3b82f6; /* Default Blue */
   border: 3px solid white;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 10px rgba(0,0,0, 0.2);
   cursor: pointer;
+}
+
+/* Statut: Nouveau (Rouge pour l'urgence) */
+.marker-pin.nouveau {
+  background: #ff3b30;
+  box-shadow: 0 4px 10px rgba(255, 59, 48, 0.4);
+}
+
+/* Statut: En cours (Orange pour les travaux) */
+.marker-pin.en-cours {
+  background: #ff9500;
+  box-shadow: 0 4px 10px rgba(255, 149, 0, 0.4);
+}
+
+/* Statut: Terminé (Vert pour validé) */
+.marker-pin.termine {
+  background: #34c759;
+  box-shadow: 0 4px 10px rgba(52, 199, 89, 0.4);
 }
 
 .marker-pin i {
@@ -147,6 +188,89 @@
   }
   50% {
     transform: rotate(-45deg) translateY(-10px);
+  }
+}
+
+/* Marqueur de localisation utilisateur */
+.location-marker-icon {
+  background: transparent;
+  border: none;
+}
+
+.location-marker-pulse {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.location-marker-pulse::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.3);
+  animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.location-marker-inner {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  position: relative;
+  z-index: 1;
+}
+
+.location-marker-inner i {
+  color: white;
+  font-size: 16px;
+  animation: rotate-arrow 2s ease-in-out infinite;
+}
+
+/* Animation de pulsation */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Animation de rotation pour la flèche */
+@keyframes rotate-arrow {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+/* Animation de disparition */
+.location-marker-icon.fade-out {
+  animation: fadeOut 0.5s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
   }
 }
 

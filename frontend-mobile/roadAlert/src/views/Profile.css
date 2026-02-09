@@ -407,6 +407,14 @@
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
+.stat-icon.orange {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+}
+
+.stat-icon.indigo {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
 .stat-icon.green {
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 }

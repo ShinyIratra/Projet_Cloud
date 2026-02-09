@@ -1,88 +1,81 @@
-import { API_URL } from './config';
+// API des signalements routiers - Logique métier locale (sans backend)
+// Utilise Firebase directement depuis le mobile
 
-export interface RoadAlert {
-  id?: string;
-  surface: number;
-  budget: number;
-  concerned_entreprise: string;
-  status: string;
-  latitude?: number;
-  lattitude?: number;  // L'API retourne lattitude au lieu de latitude
-  longitude: number;
-  UID: string;
-  date_alert: string;
-}
+import { roadAlertService, RoadAlert, MobileRoadAlert } from '../services/roadAlertService';
 
+// Ré-export des interfaces pour la compatibilité
+export type { RoadAlert, MobileRoadAlert };
+
+/**
+ * Récupérer tous les signalements
+ */
 export const fetchRoadAlerts = async (): Promise<RoadAlert[]> => {
-  const response = await fetch(`${API_URL}/road_alerts`);
-  if (!response.ok) throw new Error('Erreur lors du chargement des signalements');
-  const result = await response.json();
-  return result.data || [];
+  return await roadAlertService.getAllRoadAlerts();
 };
 
+/**
+ * Récupérer les signalements d'un utilisateur
+ */
 export const fetchUserRoadAlerts = async (uid: string): Promise<RoadAlert[]> => {
-  const response = await fetch(`${API_URL}/road_alerts/user/${uid}`);
-  if (!response.ok) throw new Error('Erreur lors du chargement des signalements utilisateur');
-  const result = await response.json();
-  return result.data || [];
+  return await roadAlertService.getRoadAlertsByUser(uid);
 };
 
+/**
+ * Créer un nouveau signalement (version complète)
+ */
 export const createRoadAlert = async (alert: Omit<RoadAlert, 'id'>): Promise<RoadAlert> => {
-  const response = await fetch(`${API_URL}/road_alerts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(alert),
-  });
-  if (!response.ok) throw new Error('Erreur lors de la création du signalement');
-  const result = await response.json();
-  return result.data;
+  const result = await roadAlertService.createRoadAlert(alert);
+  return { ...alert, id: result.id };
 };
 
-export interface MobileRoadAlert {
-  UID: string;
-  date_alert: string;
-  lattitude: number;
-  longitude: number;
-}
-
+/**
+ * Créer un signalement depuis mobile (version simplifiée)
+ */
 export const createMobileRoadAlert = async (alert: MobileRoadAlert): Promise<RoadAlert> => {
-  const response = await fetch(`${API_URL}/mobile/road_alerts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(alert),
-  });
-  if (!response.ok) throw new Error('Erreur lors de la création du signalement');
-  const result = await response.json();
-  return result.data;
+  const result = await roadAlertService.createMobileRoadAlert(alert);
+  return {
+    id: result.id,
+    surface: 0,
+    budget: 0,
+    concerned_entreprise: '',
+    status: 'nouveau',
+    lattitude: alert.lattitude,
+    longitude: alert.longitude,
+    UID: alert.UID,
+    date_alert: alert.date_alert
+  };
 };
 
+/**
+ * Mettre à jour un signalement
+ */
 export const updateRoadAlert = async (alert: RoadAlert): Promise<RoadAlert> => {
-  const response = await fetch(`${API_URL}/road_alerts`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(alert),
-  });
-  if (!response.ok) throw new Error('Erreur lors de la mise à jour');
-  const result = await response.json();
-  return result.data;
+  await roadAlertService.updateRoadAlert(alert);
+  return alert;
 };
 
+/**
+ * Mettre à jour le statut d'un signalement
+ */
 export const updateAlertStatus = async (id: string, status: string): Promise<RoadAlert> => {
-  const response = await fetch(`${API_URL}/road_alerts/status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, status }),
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.message || 'Erreur lors de la mise à jour du statut');
-  return result.data;
+  await roadAlertService.updateRoadAlertStatus(id, status);
+  const updatedAlert = await roadAlertService.getRoadAlertById(id);
+  if (!updatedAlert) {
+    throw new Error('Signalement non trouvé après mise à jour');
+  }
+  return updatedAlert;
 };
 
+/**
+ * Supprimer un signalement
+ */
 export const deleteRoadAlert = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/road_alerts`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id }),
-  });
-  if (!response.ok) throw new Error('Erreur lors de la suppression');
+  await roadAlertService.deleteRoadAlert(id);
+};
+
+/**
+ * Récupérer un signalement par ID
+ */
+export const fetchRoadAlertById = async (id: string): Promise<RoadAlert | null> => {
+  return await roadAlertService.getRoadAlertById(id);
 };

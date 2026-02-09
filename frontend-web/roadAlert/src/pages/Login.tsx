@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IonContent, IonPage } from '@ionic/react';
+import { IonContent, IonPage, IonToast } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { api } from '../utils/api';
 import './Login.css';
@@ -12,15 +12,57 @@ type Particle = {
   vy: number;
 };
 
+type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface Toast {
+  show: boolean;
+  message: string;
+  type: ToastType;
+}
+
 const Login: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animationRef = useRef<number | null>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const history = useHistory();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
+
+  // Auto-focus email on mount
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLInputElement | null> | null) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextRef?.current) {
+        nextRef.current.focus();
+      }
+    }
+  };
+
+  // Helper pour afficher les toasts
+  const showToast = (message: string, type: ToastType = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  // Mapping couleurs pour les toasts
+  const getToastColor = (type: ToastType): string => {
+    switch (type) {
+      case 'success': return 'success';
+      case 'error': return 'danger';
+      case 'warning': return 'warning';
+      case 'info': return 'primary';
+      default: return 'medium';
+    }
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -105,11 +147,30 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
+      // Validation côté client
+      if (!email.trim() || !password.trim()) {
+        setError('Veuillez remplir tous les champs');
+        setLoading(false);
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Format d\'email invalide');
+        setLoading(false);
+        return;
+      }
+
       const user = await api.login(email, password);
       // Stocker l'utilisateur dans localStorage
       localStorage.setItem('user', JSON.stringify(user));
-      // Forcer le rafraîchissement en rechargeant la page après redirection
-      window.location.href = '/home';
+      
+      showToast(`Bienvenue ${user.username} !`, 'success');
+      
+      // Rediriger après un court délai pour voir le message
+      setTimeout(() => {
+        window.location.href = '/home';
+      }, 1000);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Erreur de connexion';
       setError(errorMsg);
@@ -119,12 +180,14 @@ const Login: React.FC = () => {
   };
 
   const handleRegister = () => {
-    history.push('/register');
+    showToast('Fonctionnalité en cours de développement', 'info');
+    // history.push('/register');
   };
 
   const handleVisitor = () => {
     localStorage.removeItem('user');
-    history.push('/home');
+    showToast('Mode visiteur activé - Accès en lecture seule', 'info');
+    setTimeout(() => history.push('/home'), 800);
   };
 
   return (
@@ -133,7 +196,6 @@ const Login: React.FC = () => {
         <canvas ref={canvasRef} className="login-canvas" />
         <div className="login-wrapper">
           <main className="card">
-            <div className="logo" aria-hidden>●</div>
             <h1>Identifiant</h1>
             <p className="subtitle">Entrer vos identifiants</p>
 
@@ -143,14 +205,17 @@ const Login: React.FC = () => {
 
             <form onSubmit={handleSubmit}>
               <input 
+                ref={emailRef}
                 type="email" 
                 name="email" 
                 placeholder="Email" 
                 required 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, passwordRef)}
               />
               <input 
+                ref={passwordRef}
                 type="password" 
                 name="password" 
                 placeholder="Mot de passe" 
@@ -164,9 +229,7 @@ const Login: React.FC = () => {
             </form>
 
             <div className="actions">
-              <a href="#" onClick={handleVisitor}>Mode visiteur</a>
-              <span className="separator" />
-              <a href="#" onClick={handleRegister}>Créer un compte</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); handleVisitor(); }}>Mode visiteur</a>
             </div>
           </main>
 
@@ -174,6 +237,17 @@ const Login: React.FC = () => {
             <p>Données et confidentialité</p>
           </footer>
         </div>
+
+        {/* TOAST NOTIFICATIONS */}
+        <IonToast
+          isOpen={toast.show}
+          onDidDismiss={() => setToast({ ...toast, show: false })}
+          message={toast.message}
+          duration={2500}
+          position="top"
+          color={getToastColor(toast.type)}
+          cssClass="custom-toast"
+        />
       </IonContent>
     </IonPage>
   );

@@ -1,16 +1,18 @@
+/* Force le thème clair (fond blanc) */
 :root {
-  --canvas: #f5f5f7;
-  --card-bg: rgba(255, 255, 255, 0.9);
+  --canvas: #ffffff;
+  --card-bg: rgba(255, 255, 255, 0.95);
   --text-primary: #1d1d1f;
   --text-secondary: #6e6e73;
   --accent: #0066cc;
   --input-bg: #ffffff;
   --input-border: #d2d2d7;
-  --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
   --dot-color: 0, 0, 0;
-  --dot-opacity: 0.15;
+  --dot-opacity: 0.12;
 }
 
+/* Mode sombre désactivé - toujours en mode clair
 @media (prefers-color-scheme: dark) {
   :root {
     --canvas: #000000;
@@ -25,6 +27,7 @@
     --dot-opacity: 0.2;
   }
 }
+*/
 
 .login-page,
 .login-content {
@@ -42,7 +45,8 @@
   align-items: center;
   width: 100%;
   min-height: 100vh;
-  overflow: hidden;
+  height: 100vh;
+  overflow: auto;
   padding: 0;
 }
 
@@ -61,11 +65,13 @@
   width: 100%;
   max-width: 400px;
   padding: 20px;
-  margin: 0 auto;
+  margin: auto;
   animation: fadeIn 0.8s ease-out;
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-height: 100%;
+  justify-content: center;
 }
 
 @keyframes fadeIn {
@@ -113,21 +119,25 @@
 }
 
 .logo {
-  font-size: 40px;
-  margin-bottom: 10px;
+  font-size: 48px;
+  margin-bottom: 16px;
   display: inline-block;
+  color: #1d1d1f;
+  font-weight: 300;
 }
 
 h1 {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  color: #1d1d1f;
 }
 
 .subtitle {
   font-size: 15px;
-  color: var(--text-secondary);
-  margin-bottom: 30px;
+  color: #6e6e73;
+  margin-bottom: 32px;
+  font-weight: 400;
 }
 
 form {
@@ -139,14 +149,22 @@ form {
 input {
   width: 100%;
   height: 50px;
-  background-color: var(--input-bg);
+  background-color: #ffffff !important;
   border: 1px solid var(--input-border);
   border-radius: 12px;
   padding: 0 15px;
   font-size: 16px;
-  color: var(--text-primary);
+  color: #1d1d1f !important;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box;
+  -webkit-text-fill-color: #1d1d1f !important;
+}
+
+input::placeholder {
+  color: #86868b !important;
+  opacity: 1;
+  -webkit-text-fill-color: #86868b !important;
 }
 
 input:focus {
@@ -157,18 +175,27 @@ input:focus {
 .btn-primary {
   width: 100%;
   height: 50px;
-  background-color: var(--text-primary);
-  color: var(--canvas);
+  background-color: #1d1d1f;
+  color: #ffffff;
   border: none;
   border-radius: 12px;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  margin-top: 4px;
+  margin-top: 8px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
 }
 
-.btn-primary:hover { opacity: 0.85; }
+.btn-primary:hover { 
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .actions {
   margin-top: 25px;
@@ -192,10 +219,14 @@ input:focus {
 }
 
 .footer {
-  margin-top: 30px;
-  font-size: 12px;
-  color: var(--text-secondary);
+  margin-top: 32px;
+  font-size: 13px;
+  color: #86868b;
   text-align: center;
   position: relative;
   z-index: 10;
+}
+
+.footer p {
+  margin: 0;
 }

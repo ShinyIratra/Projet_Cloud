@@ -1,10 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
-import roadAlertRoutes from './routes/roadAlertRoutes.js';
-import notificationRoutes from './routes/notificationRoutes.js';
+// Routes mobiles supprimées - la logique métier est maintenant dans l'APK mobile
+// import authRoutes from './routes/authRoutes.js';
+// import userRoutes from './routes/userRoutes.js';
+// import roadAlertRoutes from './routes/roadAlertRoutes.js';
+// import notificationRoutes from './routes/notificationRoutes.js';
 import webRoutes from './routes/webRoutes.js';
 
 import swaggerUi from 'swagger-ui-express';
@@ -30,11 +31,9 @@ app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 
-// Note : Swagger utilise les chemins définis dans authRoutes.js (/api/login, etc.)
-app.use('/api', authRoutes);
-app.use('/api', userRoutes);
-app.use('/api', roadAlertRoutes);
-app.use('/api', notificationRoutes);
+// Routes Web uniquement (le mobile utilise Firebase directement)
+// Les routes mobiles (/api/login, /api/register, /api/road_alerts, etc.) ont été supprimées
+// car elles sont maintenant gérées localement dans l'application mobile
 app.use('/api/web', webRoutes);
 
 // Start server

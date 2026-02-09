@@ -1,10 +1,11 @@
 <template>
   <ion-page class="login-page">
     <ion-content fullscreen class="login-content">
-      <canvas ref="canvasRef" class="login-canvas" />
-      <div class="login-wrapper">
-        <main class="card">
-          <div class="logo" aria-hidden>●</div>
+      <div class="login-centering-container">
+        <canvas ref="canvasRef" class="login-canvas" />
+        <div class="login-wrapper">
+          <main class="card">
+            <div class="logo" aria-hidden>●</div>
           <h1>Identifiant</h1>
           <p class="subtitle">Entrer vos identifiants</p>
 
@@ -43,9 +44,9 @@
 
         <footer class="footer">
           <p>Données et confidentialité</p>
-          <a href="#" @click.prevent="router.push('/settings')" style="display: block; margin-top: 10px; color: var(--ion-color-medium); font-size: 0.8rem; text-decoration: none;">Configuration Serveur</a>
         </footer>
       </div>
+    </div>
     </ion-content>
   </ion-page>
 </template>
@@ -54,7 +55,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { IonContent, IonPage } from '@ionic/vue';
 import { useRouter } from 'vue-router';
-import { loginUser } from '../utils/authApi';
+import { loginUser, resetPassword } from '../utils/authApi';
 import './Login.css';
 
 type Particle = {
@@ -166,9 +167,19 @@ const handleSubmit = async () => {
   }
 };
 
-const handleForgotPassword = () => {
-  // TODO: Implémenter la récupération de mot de passe
-  console.log('Mot de passe oublié');
+const handleForgotPassword = async () => {
+  if (!email.value) {
+    errorMessage.value = 'Veuillez entrer votre adresse email pour réinitialiser le mot de passe';
+    return;
+  }
+  
+  try {
+    await resetPassword(email.value);
+    errorMessage.value = '';
+    alert('Un email de réinitialisation a été envoyé à ' + email.value);
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Erreur lors de la réinitialisation';
+  }
 };
 
 onMounted(() => {

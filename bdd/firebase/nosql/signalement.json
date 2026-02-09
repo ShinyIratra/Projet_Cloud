@@ -1,12 +1,14 @@
-// Problème Routier
 {
-    "Id_problème_routier": "",
-    "Surface": ,
-    "Budget": ,
-    "Entreprise_concerné": ,
-    "Statut": "",
-    "Lattitude":,
-    "Longitude":,
     "UID":,
-    "date_signalement":
+    "budget":,
+    "concerned_entreprise":,
+    "date_alert":,
+    "id":,
+    "lattitude":, 
+    "longitude":, 
+    "status":, 
+    "surface":, 
+    "update_at":,
+    "photos": [],
+    "photo_principale": "",
 }
