@@ -1,14 +1,67 @@
 <template>
   <ion-page class="dashboard-page">
     <ion-content :fullscreen="true" class="dashboard-content-wrapper">
-      <!-- NAVBAR -->
-      <TopNavBar 
-        :showBrand="true"
-        :showUserMenu="true"
-        :isAuthenticated="isAuthenticated"
-        @logout="handleLogout"
-        @login="router.push('/login')"
-      />
+      <!-- NAVBAR personnalisée -->
+      <nav class="top-navigation-dashboard">
+        <div class="nav-left">
+          <div class="navbar-brand">
+            Road<span class="brand-accent">Alert</span>
+            <span class="brand-tag">Tana</span>
+          </div>
+        </div>
+        
+        <div class="nav-right">
+          <div class="user-menu-container">
+            <!-- Avatar par défaut si non connecté -->
+            <div 
+              v-if="!isAuthenticated"
+              @click="router.push('/login')"
+              class="avatar-placeholder"
+            >
+              <i class="fas fa-user"></i>
+            </div>
+            
+            <!-- Avatar si connecté -->
+            <div 
+              v-else
+              class="user-avatar"
+              @click="toggleUserMenu"
+            >
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+            </div>
+            
+            <!-- User Menu Dropdown -->
+            <transition name="fade-slide">
+              <div 
+                v-if="showUserMenu" 
+                class="user-menu-dropdown"
+              >
+                <div class="user-menu-header">
+                  <div class="user-avatar-circle">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user">
+                  </div>
+                  <p class="user-name">{{ userName }}</p>
+                  <p class="user-email">{{ userEmail }}</p>
+                </div>
+                <div class="user-menu-divider"></div>
+                <button class="user-menu-item" @click="handleProfile">
+                  <i class="fas fa-user"></i>
+                  <span>Mon profil</span>
+                </button>
+                <button class="user-menu-item" @click="handleSettings">
+                  <i class="fas fa-cog"></i>
+                  <span>Paramètres</span>
+                </button>
+                <div class="user-menu-divider"></div>
+                <button class="user-menu-item logout" @click="handleLogout">
+                  <i class="fas fa-sign-out-alt"></i>
+                  <span>Se déconnecter</span>
+                </button>
+              </div>
+            </transition>
+          </div>
+        </div>
+      </nav>
 
       <!-- MAIN CONTENT -->
       <main class="dashboard-content">
@@ -142,7 +195,6 @@ import { fetchRoadAlerts, fetchUserRoadAlerts, type RoadAlert } from '../utils/r
 import AlertsChart from '../components/AlertsChart.vue';
 import CompaniesCard from '../components/CompaniesCard.vue';
 import AlertsTable from '../components/AlertsTable.vue';
-import TopNavBar from '../components/TopNavBar.vue';
 import BottomNavBar from '../components/BottomNavBar.vue';
 import './Dashboard.css';
 
@@ -152,6 +204,39 @@ const alerts = ref<RoadAlert[]>([]);
 const activeTab = ref('stats');
 const showMyAlertsOnly = ref(false);
 const isAuthenticated = ref(false);
+const showUserMenu = ref(false);
+const userName = ref('Utilisateur');
+const userEmail = ref('utilisateur@example.com');
+
+// Charger les informations utilisateur
+const loadUserInfo = () => {
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      userName.value = user.nom || user.name || 'Utilisateur';
+      userEmail.value = user.email || 'utilisateur@example.com';
+    } catch (e) {
+      console.error('Erreur lors de la lecture de l\'utilisateur:', e);
+    }
+  }
+};
+
+// Toggle user menu
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value;
+};
+
+// Navigation handlers
+const handleProfile = () => {
+  showUserMenu.value = false;
+  router.push('/profile');
+};
+
+const handleSettings = () => {
+  showUserMenu.value = false;
+  router.push('/settings');
+};
 
 // Vérifier l'authentification
 const checkAuth = () => {
@@ -301,6 +386,7 @@ const handleLogout = () => {
 
 onMounted(() => {
   checkAuth();
+  loadUserInfo();
   loadData();
 });
 </script>
