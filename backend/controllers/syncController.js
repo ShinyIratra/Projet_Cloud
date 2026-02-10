@@ -11,10 +11,13 @@ const syncController = {
             const firebaseSnapshot = await db.collection('road_alerts').get();
             
             // Récupérer tous les signalements de Postgres avec leur statut actuel
+            // On prend le MAX entre updated_at (données) et status_update_at (statut)
             const postgresResult = await query(`
                 SELECT s.*, ss.code as status_code, e.nom as entreprise_nom,
                        get_latitude(s.position) as lattitude, get_longitude(s.position) as longitude,
-                       hss.update_at as status_update_at
+                       hss.update_at as status_update_at,
+                       s.updated_at as data_updated_at,
+                       GREATEST(COALESCE(s.updated_at, s.date_signalement), COALESCE(hss.update_at, s.date_signalement)) as last_modified
                 FROM signalements s
                 LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
                 LEFT JOIN (
@@ -85,12 +88,13 @@ const syncController = {
                 if (!postgresData) {
                     // Nouveau signalement depuis Firebase → l'ajouter à Postgres
                     const insertResult = await query(`
-                        INSERT INTO signalements (surface, budget, position, Id_entreprise, Id_users, date_signalement, id_firebase)
-                        VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, 1, $6, $7)
+                        INSERT INTO signalements (surface, prix_m2, niveau, position, Id_entreprise, Id_users, date_signalement, id_firebase)
+                        VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326)::geography, $6, 1, $7, $8)
                         RETURNING Id_signalements
                     `, [
                         firebaseData.surface || 0,
-                        firebaseData.budget || 0,
+                        firebaseData.prix_m2 || 100000,
+                        firebaseData.niveau || 1,
                         firebaseData.longitude || 0,
                         firebaseData.lattitude || firebaseData.latitude || 0,
                         entrepriseId,
@@ -110,7 +114,8 @@ const syncController = {
                 } else {
                     // Le signalement existe dans les deux bases → comparer et synchroniser
                     const firebaseUpdateTime = new Date(firebaseData.updated_at || firebaseData.date_alert || 0);
-                    const postgresUpdateTime = new Date(postgresData.status_update_at || postgresData.date_signalement || 0);
+                    // Utiliser last_modified qui est le MAX entre updated_at (données) et status_update_at (statut)
+                    const postgresUpdateTime = new Date(postgresData.last_modified || postgresData.date_signalement || 0);
 
                     // Vérifier si l'entreprise doit être mise à jour dans PostgreSQL
                     const needsEntrepriseUpdateInPostgres = entrepriseId !== null && 
@@ -122,9 +127,10 @@ const syncController = {
 
                     if (firebaseUpdateTime > postgresUpdateTime) {
                         // Firebase est plus récent → mettre à jour Postgres
+                        // Note: Le trigger updated_at est désactivé pour cette mise à jour, on met la date Firebase
                         await query(
-                            `UPDATE signalements SET Id_entreprise = $1, surface = $2, budget = $3 WHERE Id_signalements = $4`,
-                            [entrepriseId, firebaseData.surface || 0, firebaseData.budget || 0, postgresData.id_signalements]
+                            `UPDATE signalements SET Id_entreprise = $1, surface = $2, prix_m2 = $3, niveau = $4, updated_at = $5 WHERE Id_signalements = $6`,
+                            [entrepriseId, firebaseData.surface || 0, firebaseData.prix_m2 || 100000, firebaseData.niveau || 1, firebaseUpdateTime, postgresData.id_signalements]
                         );
 
                         // Mettre à jour le statut si différent
@@ -145,6 +151,8 @@ const syncController = {
                             status: status,
                             concerned_entreprise: entrepriseNom || postgresData.entreprise_nom || '',
                             surface: parseFloat(postgresData.surface),
+                            prix_m2: parseFloat(postgresData.prix_m2) || 100000,
+                            niveau: parseInt(postgresData.niveau) || 1,
                             budget: parseFloat(postgresData.budget),
                             updated_at: new Date().toISOString()
                         });
@@ -202,6 +210,8 @@ const syncController = {
                     await docRef.set({
                         id: postgresData.id_firebase,
                         surface: parseFloat(postgresData.surface),
+                        prix_m2: parseFloat(postgresData.prix_m2) || 100000,
+                        niveau: parseInt(postgresData.niveau) || 1,
                         budget: parseFloat(postgresData.budget),
                         lattitude: parseFloat(postgresData.lattitude),
                         longitude: parseFloat(postgresData.longitude),
@@ -242,6 +252,8 @@ const syncController = {
                     await docRef.set({
                         id: docRef.id,
                         surface: parseFloat(row.surface),
+                        prix_m2: parseFloat(row.prix_m2) || 100000,
+                        niveau: parseInt(row.niveau) || 1,
                         budget: parseFloat(row.budget),
                         lattitude: parseFloat(row.lattitude),
                         longitude: parseFloat(row.longitude),

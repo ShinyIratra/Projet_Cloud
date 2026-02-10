@@ -384,6 +384,14 @@
   left: 1rem;
 }
 
+/* Photo preview container (remplace detail-image) */
+.photo-preview-container .badge {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 2;
+}
+
 .badge {
   padding: 4px 12px;
   border-radius: 100px;

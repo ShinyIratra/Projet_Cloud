@@ -75,9 +75,12 @@ CREATE TABLE signalements(
    Id_signalements SERIAL,
    titre VARCHAR(255),
    surface NUMERIC(15,2)  NOT NULL,
-   budget NUMERIC(15,2)  NOT NULL,
+   prix_m2 NUMERIC(15,2) NOT NULL DEFAULT 100000,
+   niveau INTEGER NOT NULL DEFAULT 1 CHECK (niveau >= 1 AND niveau <= 10),
+   budget NUMERIC(15,2) GENERATED ALWAYS AS (prix_m2 * niveau * surface) STORED,
    position GEOGRAPHY(POINT, 4326) NOT NULL,
    date_signalement TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
    Id_entreprise INTEGER,
    Id_users INTEGER NOT NULL,
    id_firebase VARCHAR(255) UNIQUE,
@@ -137,7 +140,8 @@ INSERT INTO statut_signalement (code, label, pourcentage) VALUES
 
 INSERT INTO configurations (code, description, valeur) VALUES
 ('MAX_LOGIN_ATTEMPTS', 'Nombre max de tentatives de connexion', '3'),
-('SESSION_TIMEOUT', 'Duree de session en secondes', '3600');
+('SESSION_TIMEOUT', 'Duree de session en secondes', '3600'),
+('PRIX_M2_DEFAUT', 'Prix par m2 forfaitaire par defaut (en Ariary)', '100000');
 
 INSERT INTO entreprise (nom) VALUES
 ('COLAS Madagascar'),
@@ -151,6 +155,26 @@ INSERT INTO users (username, email, password, Id_type_user) VALUES
 
 INSERT INTO users_status (Id_statut_type, Id_users) VALUES
 (1, 1);
+
+-- ============================================
+-- TRIGGER POUR METTRE A JOUR updated_at AUTOMATIQUEMENT
+-- ============================================
+
+CREATE OR REPLACE FUNCTION update_signalements_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Ne met à jour que si updated_at n'est pas explicitement fourni dans l'UPDATE
+    IF NEW.updated_at = OLD.updated_at THEN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_signalements_updated_at
+    BEFORE UPDATE ON signalements
+    FOR EACH ROW
+    EXECUTE FUNCTION update_signalements_updated_at();
 
 -- ============================================
 -- INDEX POUR LES PERFORMANCES
@@ -171,6 +195,8 @@ SELECT
     s.Id_signalements,
     s.titre,
     s.surface,
+    s.prix_m2,
+    s.niveau,
     s.budget,
     get_latitude(s.position) AS latitude,
     get_longitude(s.position) AS longitude,

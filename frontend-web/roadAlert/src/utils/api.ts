@@ -4,6 +4,8 @@ export interface Signalement {
   id: number;
   titre?: string;
   surface: number;
+  prix_m2: number;
+  niveau: number;
   budget: number;
   lattitude: number;
   longitude: number;
@@ -14,6 +16,8 @@ export interface Signalement {
   updated_at?: string;
   date_debut?: string;
   date_fin?: string;
+  photo_principale?: string;  // Image base64
+  photos?: string[];          // Array d'images base64
 }
 
 export interface Stats {
@@ -58,7 +62,16 @@ const getAuthHeaders = (): HeadersInit => {
 
 // Helper pour gérer les réponses API
 const handleResponse = async (res: Response, errorMessage: string) => {
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (parseError) {
+    // Si le serveur ne répond pas en JSON
+    if (!res.ok) {
+      throw new Error(`Erreur serveur (${res.status})`);
+    }
+    throw new Error('Réponse invalide du serveur');
+  }
   if (data.status === 'error') {
     throw new Error(data.message || errorMessage);
   }
@@ -235,5 +248,25 @@ export const api = {
     });
     const data = await handleResponse(res, 'Erreur lors du chargement des données de performance');
     return data.data;
+  },
+
+  async getDefaultPrixM2(): Promise<number> {
+    try {
+      const res = await fetch(`${API_URL}/api/web/config/prix-m2`);
+      const data = await res.json();
+      return data.data?.prix_m2 || 100000;
+    } catch (error) {
+      console.error('Erreur chargement prix m2:', error);
+      return 100000;
+    }
+  },
+
+  async updateDefaultPrixM2(prix_m2: number): Promise<void> {
+    const res = await fetch(`${API_URL}/api/web/config/prix-m2`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ prix_m2 }),
+    });
+    await handleResponse(res, 'Erreur lors de la mise à jour du prix par m²');
   },
 };
