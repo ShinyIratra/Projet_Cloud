@@ -53,7 +53,7 @@ const handleTabClick = (tabName: string) => {
 <style scoped>
 .bottom-navigation {
   position: fixed;
-  bottom: 24px;
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
@@ -70,6 +70,10 @@ const handleTabClick = (tabName: string) => {
     
   border-radius: 35px;
   padding: 12px 20px;
+  
+  /* Safe area support */
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  margin-bottom: max(24px, env(safe-area-inset-bottom));
   
   display: flex;
   justify-content: space-around;
@@ -150,8 +154,9 @@ const handleTabClick = (tabName: string) => {
 @media (max-width: 480px) {
   .bottom-navigation {
     width: 85%;
-    bottom: 20px;
+    margin-bottom: max(20px, env(safe-area-inset-bottom));
     padding: 10px 15px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
   }
 }
 </style>
