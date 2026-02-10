@@ -78,6 +78,7 @@ CREATE TABLE signalements(
    budget NUMERIC(15,2)  NOT NULL,
    position GEOGRAPHY(POINT, 4326) NOT NULL,
    date_signalement TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
    Id_entreprise INTEGER,
    Id_users INTEGER NOT NULL,
    id_firebase VARCHAR(255) UNIQUE,
@@ -151,6 +152,26 @@ INSERT INTO users (username, email, password, Id_type_user) VALUES
 
 INSERT INTO users_status (Id_statut_type, Id_users) VALUES
 (1, 1);
+
+-- ============================================
+-- TRIGGER POUR METTRE A JOUR updated_at AUTOMATIQUEMENT
+-- ============================================
+
+CREATE OR REPLACE FUNCTION update_signalements_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Ne met à jour que si updated_at n'est pas explicitement fourni dans l'UPDATE
+    IF NEW.updated_at = OLD.updated_at THEN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_signalements_updated_at
+    BEFORE UPDATE ON signalements
+    FOR EACH ROW
+    EXECUTE FUNCTION update_signalements_updated_at();
 
 -- ============================================
 -- INDEX POUR LES PERFORMANCES

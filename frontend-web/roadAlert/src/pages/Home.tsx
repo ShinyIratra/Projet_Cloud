@@ -5,6 +5,8 @@ import { api, Signalement, Stats, User } from '../utils/api';
 import L from 'leaflet';
 import '../assets/leaflet/leaflet.css';
 import './Home.css';
+import PhotoCarousel from '../components/PhotoCarousel';
+import '../components/PhotoCarousel.css';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -23,6 +25,7 @@ const Home: React.FC = () => {
   const [toast, setToast] = useState<Toast>({ show: false, message: '', type: 'success' });
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showCarousel, setShowCarousel] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const mapInitialized = useRef(false);
@@ -167,7 +170,8 @@ const Home: React.FC = () => {
         .addTo(mapRef.current!);
 
       marker.on('mouseover', () => setSelected(s));
-      marker.on('click', () => {
+      marker.on('click', (e: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(e);
         mapRef.current?.flyTo([lat, lng], 15);
         setSelected(s);
       });
@@ -489,8 +493,38 @@ const Home: React.FC = () => {
           <div className="panel-right">
             {selected ? (
               <div className="floating-card detail-card visible">
-                <div className="detail-image">
-                  <img src="https://images.unsplash.com/photo-1581094288338-2314dddb7ecc?auto=format&fit=crop&w=600" alt="travaux" />
+                <div 
+                  className="photo-preview-container"
+                  onClick={() => {
+                    if (selected.photo_principale || (selected.photos && selected.photos.length > 0)) {
+                      setShowCarousel(true);
+                    }
+                  }}
+                >
+                  {selected.photo_principale ? (
+                    <>
+                      <img 
+                        src={selected.photo_principale} 
+                        alt="Photo du signalement"
+                        className="photo-preview-image"
+                      />
+                      {(selected.photos && selected.photos.length > 0) && (
+                        <div className="photo-count-badge">
+                          <i className="fas fa-images"></i>
+                          {selected.photos.length + 1}
+                        </div>
+                      )}
+                      <div className="photo-preview-overlay">
+                        <i className="fas fa-expand"></i>
+                        Voir les photos
+                      </div>
+                    </>
+                  ) : (
+                    <div className="no-photo-placeholder">
+                      <i className="fas fa-camera"></i>
+                      <span>Pas de photo</span>
+                    </div>
+                  )}
                   <span className={`badge ${getStatusInfo(selected.status).class}`}>
                     {getStatusInfo(selected.status).label}
                   </span>
@@ -560,6 +594,15 @@ const Home: React.FC = () => {
             <i className="fas fa-tachometer-alt"></i>
           </button>
         </div>
+
+        {/* PHOTO CAROUSEL MODAL */}
+        {showCarousel && selected && (
+          <PhotoCarousel
+            photoPrincipale={selected.photo_principale}
+            photos={selected.photos || []}
+            onClose={() => setShowCarousel(false)}
+          />
+        )}
 
         {/* TOAST NOTIFICATIONS */}
         <IonToast

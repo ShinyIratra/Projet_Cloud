@@ -11,10 +11,13 @@ const syncController = {
             const firebaseSnapshot = await db.collection('road_alerts').get();
             
             // Récupérer tous les signalements de Postgres avec leur statut actuel
+            // On prend le MAX entre updated_at (données) et status_update_at (statut)
             const postgresResult = await query(`
                 SELECT s.*, ss.code as status_code, e.nom as entreprise_nom,
                        get_latitude(s.position) as lattitude, get_longitude(s.position) as longitude,
-                       hss.update_at as status_update_at
+                       hss.update_at as status_update_at,
+                       s.updated_at as data_updated_at,
+                       GREATEST(COALESCE(s.updated_at, s.date_signalement), COALESCE(hss.update_at, s.date_signalement)) as last_modified
                 FROM signalements s
                 LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
                 LEFT JOIN (
@@ -110,7 +113,8 @@ const syncController = {
                 } else {
                     // Le signalement existe dans les deux bases → comparer et synchroniser
                     const firebaseUpdateTime = new Date(firebaseData.updated_at || firebaseData.date_alert || 0);
-                    const postgresUpdateTime = new Date(postgresData.status_update_at || postgresData.date_signalement || 0);
+                    // Utiliser last_modified qui est le MAX entre updated_at (données) et status_update_at (statut)
+                    const postgresUpdateTime = new Date(postgresData.last_modified || postgresData.date_signalement || 0);
 
                     // Vérifier si l'entreprise doit être mise à jour dans PostgreSQL
                     const needsEntrepriseUpdateInPostgres = entrepriseId !== null && 
@@ -122,9 +126,10 @@ const syncController = {
 
                     if (firebaseUpdateTime > postgresUpdateTime) {
                         // Firebase est plus récent → mettre à jour Postgres
+                        // Note: Le trigger updated_at est désactivé pour cette mise à jour, on met la date Firebase
                         await query(
-                            `UPDATE signalements SET Id_entreprise = $1, surface = $2, budget = $3 WHERE Id_signalements = $4`,
-                            [entrepriseId, firebaseData.surface || 0, firebaseData.budget || 0, postgresData.id_signalements]
+                            `UPDATE signalements SET Id_entreprise = $1, surface = $2, budget = $3, updated_at = $4 WHERE Id_signalements = $5`,
+                            [entrepriseId, firebaseData.surface || 0, firebaseData.budget || 0, firebaseUpdateTime, postgresData.id_signalements]
                         );
 
                         // Mettre à jour le statut si différent

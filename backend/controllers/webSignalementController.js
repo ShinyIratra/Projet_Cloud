@@ -10,6 +10,7 @@ const webSignalementController = {
             const result = await query(`
                 SELECT 
                     s.Id_signalements as id,
+                    s.id_firebase,
                     s.titre,
                     s.surface,
                     s.budget,
@@ -48,14 +49,38 @@ const webSignalementController = {
                 ORDER BY s.date_signalement DESC
             `);
             
-            // Convertir les valeurs numériques
-            const data = result.rows.map(row => ({
-                ...row,
-                surface: parseFloat(row.surface) || 0,
-                budget: parseFloat(row.budget) || 0,
-                lattitude: parseFloat(row.lattitude) || 0,
-                longitude: parseFloat(row.longitude) || 0
-            }));
+            // Récupérer les photos depuis Firebase (optionnel - timeout court pour mode hors ligne)
+            let photosMap = new Map();
+            try {
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Firebase timeout')), 3000)
+                );
+                const firebasePromise = db.collection('road_alerts').get();
+                const firebaseSnapshot = await Promise.race([firebasePromise, timeoutPromise]);
+                firebaseSnapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    photosMap.set(doc.id, {
+                        photo_principale: data.photo_principale || null,
+                        photos: data.photos || []
+                    });
+                });
+            } catch (firebaseError) {
+                console.warn('Firebase non accessible (mode hors ligne) - photos non disponibles:', firebaseError.message);
+            }
+            
+            // Convertir les valeurs numériques et ajouter les photos si disponibles
+            const data = result.rows.map(row => {
+                const firebasePhotos = row.id_firebase ? photosMap.get(row.id_firebase) : null;
+                return {
+                    ...row,
+                    surface: parseFloat(row.surface) || 0,
+                    budget: parseFloat(row.budget) || 0,
+                    lattitude: parseFloat(row.lattitude) || 0,
+                    longitude: parseFloat(row.longitude) || 0,
+                    photo_principale: firebasePhotos?.photo_principale || null,
+                    photos: firebasePhotos?.photos || []
+                };
+            });
             
             res.json(new ApiModel('success', data, null));
         } catch (error) {
@@ -122,24 +147,28 @@ const webSignalementController = {
                 VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
             `, [newId, statusCode]);
 
-            // Créer également dans Firebase
-            const firebaseStatus = statusCode === 'en_cours' ? 'en cours' : (statusCode === 'termine' ? 'termine' : 'nouveau');
-            const docRef = db.collection('road_alerts').doc();
-            await docRef.set({
-                id: docRef.id,
-                surface: parseFloat(surface),
-                budget: parseFloat(budget || 0),
-                lattitude: parseFloat(lattitude),
-                longitude: parseFloat(longitude),
-                status: firebaseStatus,
-                concerned_entreprise: entreprise || '',
-                date_alert: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                UID: newId.toString()
-            });
+            // Créer également dans Firebase (optionnel - sera synchronisé plus tard si hors ligne)
+            try {
+                const firebaseStatus = statusCode === 'en_cours' ? 'en cours' : (statusCode === 'termine' ? 'termine' : 'nouveau');
+                const docRef = db.collection('road_alerts').doc();
+                await docRef.set({
+                    id: docRef.id,
+                    surface: parseFloat(surface),
+                    budget: parseFloat(budget || 0),
+                    lattitude: parseFloat(lattitude),
+                    longitude: parseFloat(longitude),
+                    status: firebaseStatus,
+                    concerned_entreprise: entreprise || '',
+                    date_alert: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    UID: newId.toString()
+                });
 
-            // Mettre à jour l'id_firebase dans Postgres
-            await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docRef.id, newId]);
+                // Mettre à jour l'id_firebase dans Postgres
+                await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docRef.id, newId]);
+            } catch (firebaseError) {
+                console.warn('Firebase create skipped (offline mode):', firebaseError.message);
+            }
 
             res.status(201).json(new ApiModel('success', { id: newId }, 'Signalement créé avec succès'));
         } catch (error) {
@@ -263,52 +292,6 @@ const webSignalementController = {
                 await query(sql, values);
             }
 
-            // Synchroniser vers Firebase
-            const signalement = await query(`
-                SELECT s.*, ss.code as status_code, e.nom as entreprise_nom,
-                       get_latitude(s.position) as lattitude, get_longitude(s.position) as longitude
-                FROM signalements s
-                LEFT JOIN (
-                    SELECT DISTINCT ON (Id_signalements) Id_signalements, Id_statut_signalement
-                    FROM Historique_StatutSignalements ORDER BY Id_signalements, update_at DESC
-                ) hss ON s.Id_signalements = hss.Id_signalements
-                LEFT JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
-                LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
-                WHERE s.Id_signalements = $1
-            `, [id]);
-
-            if (signalement.rows.length > 0) {
-                const row = signalement.rows[0];
-                let firebaseStatus = 'nouveau';
-                if (row.status_code === 'en_cours') firebaseStatus = 'en cours';
-                else if (row.status_code === 'termine') firebaseStatus = 'termine';
-
-                // Chercher le document Firebase correspondant
-                let docId = row.id_firebase;
-                if (!docId) {
-                    const snapshot = await db.collection('road_alerts')
-                        .where('lattitude', '==', parseFloat(row.lattitude))
-                        .where('longitude', '==', parseFloat(row.longitude))
-                        .get();
-
-                    if (!snapshot.empty) {
-                        docId = snapshot.docs[0].id;
-                        // Mettre à jour id_firebase
-                        await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docId, id]);
-                    }
-                }
-
-                if (docId) {
-                    await db.collection('road_alerts').doc(docId).update({
-                        surface: parseFloat(row.surface),
-                        budget: parseFloat(row.budget),
-                        status: firebaseStatus,
-                        concerned_entreprise: row.entreprise_nom || '',
-                        updated_at: new Date().toISOString()
-                    });
-                }
-            }
-
             res.json(new ApiModel('success', { id }, 'Signalement mis à jour avec succès'));
         } catch (error) {
             console.error('Erreur update signalement:', error);
@@ -345,43 +328,6 @@ const webSignalementController = {
                 INSERT INTO Historique_StatutSignalements (Id_signalements, Id_statut_signalement)
                 VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
             `, [id, status]);
-
-            // Récupérer les infos mises à jour
-            const result = await query(`
-                SELECT get_latitude(position) as lattitude, get_longitude(position) as longitude, 
-                       date_signalement, id_firebase
-                FROM signalements WHERE Id_signalements = $1
-            `, [id]);
-
-            if (result.rows.length > 0) {
-                // Synchroniser vers Firebase
-                const row = result.rows[0];
-                let firebaseStatus = 'nouveau';
-                if (status === 'en_cours') firebaseStatus = 'en cours';
-                else if (status === 'termine') firebaseStatus = 'termine';
-
-                // Chercher le document Firebase correspondant par id_firebase ou coordonnées
-                let docId = row.id_firebase;
-                if (!docId) {
-                    const snapshot = await db.collection('road_alerts')
-                        .where('lattitude', '==', parseFloat(row.lattitude))
-                        .where('longitude', '==', parseFloat(row.longitude))
-                        .get();
-                    
-                    if (!snapshot.empty) {
-                        docId = snapshot.docs[0].id;
-                        // Mettre à jour id_firebase dans Postgres
-                        await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docId, id]);
-                    }
-                }
-
-                if (docId) {
-                    await db.collection('road_alerts').doc(docId).update({
-                        status: firebaseStatus,
-                        updated_at: new Date().toISOString()
-                    });
-                }
-            }
 
             // Message de succès selon le statut
             let message = 'Statut mis à jour avec succès';
