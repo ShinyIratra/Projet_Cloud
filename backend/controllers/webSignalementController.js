@@ -390,10 +390,45 @@ const webSignalementController = {
                 return res.status(400).json(new ApiModel('error', null, 'Statut invalide. Utilisez: nouveau, en_cours ou termine'));
             }
 
-            // Vérifier que le signalement existe
-            const existCheck = await query('SELECT Id_signalements, id_firebase FROM signalements WHERE Id_signalements = $1', [id]);
-            if (existCheck.rows.length === 0) {
+            // Récupérer les informations du signalement y compris le statut actuel
+            const signalementQuery = await query(`
+                SELECT 
+                    s.Id_signalements, 
+                    s.id_firebase,
+                    (SELECT ss.code 
+                     FROM Historique_StatutSignalements hss
+                     JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
+                     WHERE hss.Id_signalements = s.Id_signalements
+                     ORDER BY hss.update_at DESC
+                     LIMIT 1) as current_status
+                FROM signalements s
+                WHERE s.Id_signalements = $1
+            `, [id]);
+
+            if (signalementQuery.rows.length === 0) {
                 return res.status(404).json(new ApiModel('error', null, 'Signalement non trouvé'));
+            }
+
+            const signalement = signalementQuery.rows[0];
+            const oldStatus = signalement.current_status;
+            const firebaseId = signalement.id_firebase;
+
+            // Ne rien faire si le statut est le même
+            if (oldStatus === status) {
+                return res.json(new ApiModel('success', { id, status }, 'Le statut est déjà à jour'));
+            }
+
+            // Récupérer l'UID de l'utilisateur depuis Firebase
+            let userUID = null;
+            if (firebaseId) {
+                try {
+                    const roadAlertDoc = await db.collection('road_alerts').doc(firebaseId).get();
+                    if (roadAlertDoc.exists) {
+                        userUID = roadAlertDoc.data().UID;
+                    }
+                } catch (firebaseError) {
+                    console.error('Erreur lors de la récupération du UID depuis Firebase:', firebaseError);
+                }
             }
 
             // Insérer le nouveau statut dans l'historique
@@ -401,6 +436,42 @@ const webSignalementController = {
                 INSERT INTO Historique_StatutSignalements (Id_signalements, Id_statut_signalement)
                 VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
             `, [id, status]);
+
+            // Mettre à jour le statut dans Firebase si le signalement y existe
+            if (firebaseId) {
+                try {
+                    const roadAlertRef = db.collection('road_alerts').doc(firebaseId);
+                    await roadAlertRef.update({
+                        status: status,
+                        updated_at: new Date().toISOString()
+                    });
+                } catch (firebaseError) {
+                    console.error('Erreur lors de la mise à jour Firebase:', firebaseError);
+                    // Continue même si Firebase échoue
+                }
+            }
+
+            // Créer une notification pour l'utilisateur
+            if (userUID) {
+                try {
+                    const notificationMessage = `Le statut de votre signalement a changé de "${oldStatus}" à "${status}"`;
+                    const notificationRef = db.collection('notifications').doc();
+                    
+                    await notificationRef.set({
+                        id: notificationRef.id,
+                        UID: userUID,
+                        roadAlertId: firebaseId || id.toString(),
+                        oldStatus: oldStatus,
+                        newStatus: status,
+                        message: notificationMessage,
+                        read: false,
+                        createdAt: new Date().toISOString()
+                    });
+                } catch (notifError) {
+                    console.error('Erreur lors de la création de la notification:', notifError);
+                    // Continue même si la notification échoue
+                }
+            }
 
             // Message de succès selon le statut
             let message = 'Statut mis à jour avec succès';

@@ -197,6 +197,7 @@ const closePhotoViewer = () => {
   box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.1);
   max-height: 80vh;
   overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 #bottom-sheet.active {
