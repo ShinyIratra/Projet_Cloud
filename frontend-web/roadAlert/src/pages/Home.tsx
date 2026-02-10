@@ -79,10 +79,15 @@ const Home: React.FC = () => {
       }
     }
     
-    // Initialiser la carte une seule fois
+    // CORRECTION : Initialiser la carte après un court délai pour attendre le rendu complet du DOM
     if (!mapInitialized.current) {
-      initMap();
-      mapInitialized.current = true;
+      // Utiliser requestAnimationFrame puis setTimeout pour s'assurer que tout est rendu
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          initMap();
+          mapInitialized.current = true;
+        }, 50);
+      });
     }
     
     loadData();
@@ -136,12 +141,21 @@ const Home: React.FC = () => {
 
     mapRef.current = L.map('map', { zoomControl: false }).setView([-18.8792, 47.5079], 13);
     
-    L.tileLayer('http://localhost:8080/tile/{z}/{x}/{y}.png', {
+    // Ajout d'un timestamp pour forcer le rechargement des tuiles sans cache
+    const cacheBuster = new Date().getTime();
+    L.tileLayer('http://localhost:8080/tile/{z}/{x}/{y}.png?v=' + cacheBuster, {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(mapRef.current);
 
     mapRef.current.on('click', () => setSelected(null));
+
+    // CORRECTION : Forcer le recalcul des dimensions après initialisation
+    setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    }, 100);
   };
 
   const updateMarkers = () => {
