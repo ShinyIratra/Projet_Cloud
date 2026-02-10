@@ -360,7 +360,7 @@ const handleSubmit = async () => {
 .modal-content {
     flex: 1;
     overflow-y: auto;
-    padding: 24px 20px 32px;
+    padding: 24px 20px calc(32px + env(safe-area-inset-bottom));
 }
 
 .title-section {

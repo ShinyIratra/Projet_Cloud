@@ -27,7 +27,8 @@ const Management: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newSignalement, setNewSignalement] = useState<Partial<Signalement>>({
     surface: undefined,
-    budget: undefined,
+    prix_m2: undefined,
+    niveau: 1,
     lattitude: undefined,
     longitude: undefined,
     entreprise: '',
@@ -35,6 +36,7 @@ const Management: React.FC = () => {
   });
   const [entreprises, setEntreprises] = useState<{id: number, nom: string}[]>([]);
   const [userName, setUserName] = useState('Manager');
+  const [defaultPrixM2, setDefaultPrixM2] = useState<number>(100000);
   // State pour le mode "terminer" avec confirmation
   const [finishingAlert, setFinishingAlert] = useState<number | null>(null);
   const [finishDate, setFinishDate] = useState<string>('');
@@ -47,7 +49,8 @@ const Management: React.FC = () => {
 
   // Refs for add modal keyboard navigation
   const addSurfaceRef = useRef<HTMLInputElement>(null);
-  const addBudgetRef = useRef<HTMLInputElement>(null);
+  const addPrixM2Ref = useRef<HTMLInputElement>(null);
+  const addNiveauRef = useRef<HTMLSelectElement>(null);
   const addEntrepriseRef = useRef<HTMLSelectElement>(null);
   const addLatRef = useRef<HTMLInputElement>(null);
   const addLongRef = useRef<HTMLInputElement>(null);
@@ -55,7 +58,8 @@ const Management: React.FC = () => {
 
   // Refs for edit form keyboard navigation
   const editSurfaceRef = useRef<HTMLInputElement>(null);
-  const editBudgetRef = useRef<HTMLInputElement>(null);
+  const editPrixM2Ref = useRef<HTMLInputElement>(null);
+  const editNiveauRef = useRef<HTMLSelectElement>(null);
   const editEntrepriseRef = useRef<HTMLSelectElement>(null);
   const editLatRef = useRef<HTMLInputElement>(null);
   const editLongRef = useRef<HTMLInputElement>(null);
@@ -159,6 +163,7 @@ const Management: React.FC = () => {
   useEffect(() => {
     loadAlerts();
     loadEntreprises();
+    loadDefaultPrixM2();
   }, []);
 
   useEffect(() => {
@@ -177,6 +182,15 @@ const Management: React.FC = () => {
       setEntreprises(data);
     } catch (error) {
       console.error('Erreur lors du chargement des entreprises:', error);
+    }
+  };
+
+  const loadDefaultPrixM2 = async () => {
+    try {
+      const prix = await api.getDefaultPrixM2();
+      setDefaultPrixM2(prix);
+    } catch (error) {
+      console.error('Erreur lors du chargement du prix m2:', error);
     }
   };
 
@@ -335,7 +349,8 @@ const Management: React.FC = () => {
       const signalementData = {
         ...newSignalement,
         userId: user.id,
-        budget: newSignalement.budget || 0
+        prix_m2: newSignalement.prix_m2 || defaultPrixM2,
+        niveau: newSignalement.niveau || 1
       };
 
       await api.createSignalement(signalementData as any);
@@ -343,7 +358,8 @@ const Management: React.FC = () => {
       setShowAddModal(false);
       setNewSignalement({
         surface: undefined,
-        budget: undefined,
+        prix_m2: undefined,
+        niveau: 1,
         lattitude: undefined,
         longitude: undefined,
         entreprise: '',
@@ -506,18 +522,41 @@ const Management: React.FC = () => {
                             placeholder="Surface en m²"
                             value={editForm.surface || ''}
                             onChange={(e) => setEditForm({ ...editForm, surface: e.target.value ? Number(e.target.value) : undefined })}
-                            onKeyDown={(e) => handleKeyNav(e, editBudgetRef)}
+                            onKeyDown={(e) => handleKeyNav(e, editPrixM2Ref)}
                           />
                         </div>
                         <div className="form-group">
-                          <label>Budget (Ar)</label>
+                          <label>Prix/m² (Ar)</label>
                           <input
-                            ref={editBudgetRef}
+                            ref={editPrixM2Ref}
                             type="number"
-                            placeholder="Budget en Ariary"
-                            value={editForm.budget || ''}
-                            onChange={(e) => setEditForm({ ...editForm, budget: e.target.value ? Number(e.target.value) : undefined })}
+                            placeholder={`Défaut: ${defaultPrixM2.toLocaleString('fr-FR')}`}
+                            value={editForm.prix_m2 || ''}
+                            onChange={(e) => setEditForm({ ...editForm, prix_m2: e.target.value ? Number(e.target.value) : undefined })}
+                            onKeyDown={(e) => handleKeyNav(e, editNiveauRef)}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Niveau (1-10)</label>
+                          <select
+                            ref={editNiveauRef}
+                            value={editForm.niveau || 1}
+                            onChange={(e) => setEditForm({ ...editForm, niveau: Number(e.target.value) })}
                             onKeyDown={(e) => handleKeyNav(e, editEntrepriseRef)}
+                          >
+                            {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                              <option key={n} value={n}>Niveau {n}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Budget estimé (auto)</label>
+                          <input
+                            type="text"
+                            disabled
+                            value={`${((editForm.prix_m2 || defaultPrixM2) * (editForm.niveau || 1) * (editForm.surface || 0)).toLocaleString('fr-FR')} Ar`}
                           />
                         </div>
                       </div>
@@ -601,6 +640,12 @@ const Management: React.FC = () => {
                             </div>
                             <div className="meta-item border">
                               Surface : <span>{alert.surface.toLocaleString('fr-FR')} m²</span>
+                            </div>
+                            <div className="meta-item border">
+                              Niveau : <span>{alert.niveau || 1}</span>
+                            </div>
+                            <div className="meta-item border">
+                              Budget : <span>{alert.budget.toLocaleString('fr-FR')} Ar</span>
                             </div>
                           </div>
                         </div>
@@ -810,18 +855,41 @@ const Management: React.FC = () => {
                       placeholder="Surface en m²"
                       value={newSignalement.surface || ''}
                       onChange={(e) => setNewSignalement({ ...newSignalement, surface: e.target.value ? Number(e.target.value) : undefined })}
-                      onKeyDown={(e) => handleKeyNav(e, addBudgetRef)}
+                      onKeyDown={(e) => handleKeyNav(e, addPrixM2Ref)}
                     />
                   </div>
                   <div className="form-group">
-                    <label>Budget (Ar) *</label>
+                    <label>Prix/m² (Ar)</label>
                     <input
-                      ref={addBudgetRef}
+                      ref={addPrixM2Ref}
                       type="number"
-                      placeholder="Budget en Ariary"
-                      value={newSignalement.budget || ''}
-                      onChange={(e) => setNewSignalement({ ...newSignalement, budget: e.target.value ? Number(e.target.value) : undefined })}
+                      placeholder={`Défaut: ${defaultPrixM2.toLocaleString('fr-FR')}`}
+                      value={newSignalement.prix_m2 || ''}
+                      onChange={(e) => setNewSignalement({ ...newSignalement, prix_m2: e.target.value ? Number(e.target.value) : undefined })}
+                      onKeyDown={(e) => handleKeyNav(e, addNiveauRef)}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Niveau (1-10) *</label>
+                    <select
+                      ref={addNiveauRef}
+                      value={newSignalement.niveau || 1}
+                      onChange={(e) => setNewSignalement({ ...newSignalement, niveau: Number(e.target.value) })}
                       onKeyDown={(e) => handleKeyNav(e, addEntrepriseRef)}
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                        <option key={n} value={n}>Niveau {n}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Budget estimé (auto)</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={`${((newSignalement.prix_m2 || defaultPrixM2) * (newSignalement.niveau || 1) * (newSignalement.surface || 0)).toLocaleString('fr-FR')} Ar`}
                     />
                   </div>
                 </div>

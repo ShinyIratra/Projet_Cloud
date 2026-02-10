@@ -36,6 +36,8 @@ export const createMobileRoadAlert = async (alert: MobileRoadAlert): Promise<Roa
   return {
     id: result.id,
     surface: 0,
+    prix_m2: 0,
+    niveau: 1,
     budget: 0,
     concerned_entreprise: '',
     status: 'nouveau',
