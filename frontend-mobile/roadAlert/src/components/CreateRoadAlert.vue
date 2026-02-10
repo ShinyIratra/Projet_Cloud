@@ -44,6 +44,57 @@
                       </div>
                   </div>
 
+                  <!-- PHOTOS -->
+                  <div class="input-group">
+                      <label><i class="fas fa-camera"></i> Photos du problème</label>
+                      <p class="input-hint">Ajoutez jusqu'à 5 photos (optionnel)</p>
+                      
+                      <!-- Grille de photos -->
+                      <div class="photos-grid">
+                        <div 
+                          v-for="(photo, index) in signalementPhotos" 
+                          :key="index"
+                          class="photo-item"
+                        >
+                          <img :src="photo" :alt="`Photo ${index + 1}`" class="photo-preview" />
+                          <button
+                            type="button"
+                            class="photo-remove"
+                            @click="removePhoto(index)"
+                            title="Supprimer"
+                          >
+                            <i class="fas fa-times"></i>
+                          </button>
+                          <span v-if="index === 0" class="photo-badge">Principale</span>
+                        </div>
+
+                        <!-- Bouton ajouter photo -->
+                        <div v-if="signalementPhotos.length < 5" class="photo-actions">
+                          <button
+                            type="button"
+                            class="photo-button"
+                            @click="handleAddPhotoFromCamera"
+                            :disabled="isCapturing"
+                          >
+                            <i class="fas fa-camera"></i>
+                            <span>Caméra</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="photo-button gallery"
+                            @click="handleAddPhotoFromGallery"
+                            :disabled="isCapturing"
+                          >
+                            <i class="fas fa-images"></i>
+                            <span>Galerie</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <p v-if="photoError" class="error-text">{{ photoError }}</p>
+                      <p v-if="isCapturing" class="info-text"><i class="fas fa-circle-notch fa-spin"></i> Capture en cours...</p>
+                  </div>
+
               </div>
 
               <!-- SUBMIT BUTTON -->
@@ -72,6 +123,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { createMobileRoadAlert } from '../utils/roadAlertApi';
+import { photoCapture } from '../utils/cameraHelper';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -86,6 +138,9 @@ const emit = defineEmits<{
 
 const isSubmitting = ref(false);
 const showSuccess = ref(false);
+const isCapturing = ref(false);
+const signalementPhotos = ref<string[]>([]);
+const photoError = ref('');
 
 const formData = ref({
   date_alert: new Date().toISOString().split('T')[0]
@@ -93,6 +148,9 @@ const formData = ref({
 
 const close = () => {
   emit('close');
+  // Réinitialiser les photos
+  signalementPhotos.value = [];
+  photoError.value = '';
 };
 
 // Fonction pour récupérer l'UID de l'utilisateur
@@ -107,6 +165,60 @@ const getUserUID = (): string => {
     }
   }
   return '';
+};
+
+// Ajouter une photo depuis la caméra
+const handleAddPhotoFromCamera = async () => {
+  if (signalementPhotos.value.length >= 5) {
+    photoError.value = 'Maximum 5 photos atteint';
+    return;
+  }
+
+  isCapturing.value = true;
+  photoError.value = '';
+
+  try {
+    const photo = await photoCapture.camera();
+    if (photo) {
+      signalementPhotos.value.push(photo);
+      console.log('✅ Photo ajoutée depuis la caméra');
+    }
+  } catch (error) {
+    console.error('Erreur caméra:', error);
+    photoError.value = 'Erreur lors de la prise de photo';
+  } finally {
+    isCapturing.value = false;
+  }
+};
+
+// Ajouter une photo depuis la galerie
+const handleAddPhotoFromGallery = async () => {
+  if (signalementPhotos.value.length >= 5) {
+    photoError.value = 'Maximum 5 photos atteint';
+    return;
+  }
+
+  isCapturing.value = true;
+  photoError.value = '';
+
+  try {
+    const photo = await photoCapture.gallery();
+    if (photo) {
+      signalementPhotos.value.push(photo);
+      console.log('✅ Photo ajoutée depuis la galerie');
+    }
+  } catch (error) {
+    console.error('Erreur galerie:', error);
+    photoError.value = 'Erreur lors de la sélection de photo';
+  } finally {
+    isCapturing.value = false;
+  }
+};
+
+// Supprimer une photo
+const removePhoto = (index: number) => {
+  signalementPhotos.value.splice(index, 1);
+  photoError.value = '';
 };
 
 const handleSubmit = async () => {
@@ -128,8 +240,11 @@ const handleSubmit = async () => {
       date_alert: formData.value.date_alert,
       lattitude: props.selectedLocation.lat,
       longitude: props.selectedLocation.lng,
+      photos: signalementPhotos.value,
+      photo_principale: signalementPhotos.value.length > 0 ? signalementPhotos.value[0] : ''
     };
 
+    console.log('📤 Envoi du signalement avec', signalementPhotos.value.length, 'photo(s)');
     await createMobileRoadAlert(payload);
     
     // Show success toast
@@ -143,6 +258,7 @@ const handleSubmit = async () => {
         formData.value = {
             date_alert: new Date().toISOString().split('T')[0]
         };
+        signalementPhotos.value = [];
     }, 2000);
     
   } catch (error) {
@@ -466,5 +582,138 @@ const handleSubmit = async () => {
         transform: translateX(-50%) translateY(0) scale(1);
         opacity: 1;
     }
+}
+
+/* Photos Section */
+.input-hint {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+.photos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.photo-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+}
+
+.photo-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.95);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+}
+
+.photo-remove:active {
+    transform: scale(0.9);
+    background: rgba(220, 38, 38, 1);
+}
+
+.photo-badge {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    background: rgba(59, 130, 246, 0.95);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.photo-actions {
+    grid-column: span 3;
+    display: flex;
+    gap: 12px;
+}
+
+.photo-button {
+    flex: 1;
+    aspect-ratio: 2.5;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 197, 253, 0.08) 100%);
+    border: 2px dashed rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #3b82f6;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.photo-button:active {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 197, 253, 0.15) 100%);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: scale(0.98);
+}
+
+.photo-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.photo-button i {
+    font-size: 20px;
+}
+
+.photo-button.gallery {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(196, 181, 253, 0.08) 100%);
+    border-color: rgba(139, 92, 246, 0.3);
+    color: #8b5cf6;
+}
+
+.photo-button.gallery:active {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(196, 181, 253, 0.15) 100%);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.error-text {
+    color: #ef4444;
+    font-size: 11px;
+    margin-top: 8px;
+    font-weight: 600;
+}
+
+.info-text {
+    color: #3b82f6;
+    font-size: 11px;
+    margin-top: 8px;
+    font-weight: 600;
+}
+
+.info-text i {
+    margin-right: 6px;
 }
 </style>

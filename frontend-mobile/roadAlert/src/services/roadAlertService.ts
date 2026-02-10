@@ -30,6 +30,8 @@ export interface RoadAlert {
   date_alert: string;
   updated_at?: string;
   created_at?: string;
+  photos?: string[];
+  photo_principale?: string;
 }
 
 // Interface pour les signalements depuis mobile (simplifié)
@@ -38,6 +40,8 @@ export interface MobileRoadAlert {
   date_alert: string;
   lattitude: number;
   longitude: number;
+  photos?: string[];
+  photo_principale?: string;
 }
 
 // Classe modèle pour les signalements (équivalent du RoadAlertModel backend)
@@ -140,7 +144,7 @@ class RoadAlertService {
       const roadAlertRef = doc(collection(db, 'road_alerts'));
       roadAlert.id = roadAlertRef.id;
 
-      await setDoc(roadAlertRef, {
+      const dataToSave: any = {
         id: roadAlert.id,
         surface: roadAlert.surface,
         budget: roadAlert.budget,
@@ -151,8 +155,12 @@ class RoadAlertService {
         UID: roadAlert.UID,
         date_alert: roadAlert.date_alert,
         updated_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      });
+        created_at: new Date().toISOString(),
+        photos: alertData.photos || [],
+        photo_principale: alertData.photo_principale || (alertData.photos && alertData.photos.length > 0 ? alertData.photos[0] : '')
+      };
+
+      await setDoc(roadAlertRef, dataToSave);
 
       return { id: roadAlertRef.id };
     } catch (error: any) {
@@ -181,7 +189,9 @@ class RoadAlertService {
           UID: data.UID,
           date_alert: data.date_alert,
           updated_at: data.updated_at,
-          created_at: data.created_at
+          created_at: data.created_at,
+          photos: data.photos || [],
+          photo_principale: data.photo_principale || ''
         });
       });
 
@@ -213,7 +223,9 @@ class RoadAlertService {
           UID: data.UID,
           date_alert: data.date_alert,
           updated_at: data.updated_at,
-          created_at: data.created_at
+          created_at: data.created_at,
+          photos: data.photos || [],
+          photo_principale: data.photo_principale || ''
         });
       });
 
@@ -323,7 +335,9 @@ class RoadAlertService {
         UID: data.UID,
         date_alert: data.date_alert,
         updated_at: data.updated_at,
-        created_at: data.created_at
+        created_at: data.created_at,
+        photos: data.photos || [],
+        photo_principale: data.photo_principale || ''
       };
     } catch (error: any) {
       throw new Error(`Erreur lors de la récupération du signalement: ${error.message}`);

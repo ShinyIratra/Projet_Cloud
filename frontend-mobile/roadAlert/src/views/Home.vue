@@ -204,6 +204,7 @@ const notificationsPanelRef = ref<any>(null);
 let map: L.Map | null = null;
 let markers: L.Marker[] = [];
 let tempMarker: L.Marker | null = null;
+let locationMarker: L.Marker | null = null;
 
 const filters = [
   { value: 'all', label: 'Tous', icon: 'fa-list' },
@@ -387,9 +388,100 @@ const closeSheet = () => {
 };
 
 const centerMap = () => {
-  if (map) {
+  if (!map) return;
+
+  // Vérifier si la géolocalisation est disponible
+  if (!navigator.geolocation) {
+    console.warn('La géolocalisation n\'est pas supportée par votre navigateur');
+    // Fallback : centrer sur Antananarivo
     map.flyTo([-18.8792, 47.5079], 13);
+    return;
   }
+
+  // Obtenir la position actuelle
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      if (!map) return;
+
+      const userLat = position.coords.latitude;
+      const userLng = position.coords.longitude;
+
+      // Supprimer l'ancien marqueur de localisation s'il existe
+      if (locationMarker) {
+        locationMarker.remove();
+      }
+
+      // Créer un marqueur de localisation avec une icône personnalisée
+      const locationIcon = L.divIcon({
+        className: 'location-marker-icon',
+        html: `
+          <div class="location-marker-pulse">
+            <div class="location-marker-inner">
+              <i class="fas fa-location-arrow"></i>
+            </div>
+          </div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      });
+
+      // Ajouter le marqueur à la carte
+      locationMarker = L.marker([userLat, userLng], { icon: locationIcon }).addTo(map);
+
+      // Animer la carte vers la position
+      map.flyTo([userLat, userLng], 16, {
+        duration: 1.5 // Durée de l'animation en secondes
+      });
+
+      // Faire disparaître le marqueur après l'animation
+      setTimeout(() => {
+        if (locationMarker) {
+          // Ajouter une classe pour l'animation de disparition
+          const markerElement = locationMarker.getElement();
+          if (markerElement) {
+            markerElement.classList.add('fade-out');
+          }
+          
+          // Supprimer complètement le marqueur après l'animation
+          setTimeout(() => {
+            if (locationMarker) {
+              locationMarker.remove();
+              locationMarker = null;
+            }
+          }, 500); // Correspond à la durée de l'animation CSS
+        }
+      }, 2000); // Attendre 2 secondes après la fin du flyTo (1.5s + 0.5s)
+    },
+    (error) => {
+      console.error('Erreur de géolocalisation:', error);
+      
+      // Messages d'erreur selon le type
+      let errorMessage = 'Impossible d\'obtenir votre position';
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          errorMessage = 'Permission de géolocalisation refusée';
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMessage = 'Position non disponible';
+          break;
+        case error.TIMEOUT:
+          errorMessage = 'Délai de géolocalisation dépassé';
+          break;
+      }
+      
+      console.warn(errorMessage);
+      
+      // Fallback : centrer sur Antananarivo
+      if (map) {
+        map.flyTo([-18.8792, 47.5079], 13);
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 0
+    }
+  );
 };
 
 const toggleMenu = () => {

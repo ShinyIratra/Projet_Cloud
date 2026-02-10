@@ -9,4 +9,6 @@
     "status":, 
     "surface":, 
     "update_at":,
+    "photos": [],
+    "photo_principale": "",
 }

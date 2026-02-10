@@ -143,7 +143,25 @@
                   </div>
                   <div class="stat-info">
                     <p class="stat-value">{{ userStats.totalAlerts }}</p>
-                    <p class="stat-label">Signalements</p>
+                    <p class="stat-label">Mes signalements</p>
+                  </div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-icon orange">
+                    <i class="fas fa-clock"></i>
+                  </div>
+                  <div class="stat-info">
+                    <p class="stat-value">{{ userStats.newAlerts }}</p>
+                    <p class="stat-label">Nouveaux</p>
+                  </div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-icon indigo">
+                    <i class="fas fa-spinner"></i>
+                  </div>
+                  <div class="stat-info">
+                    <p class="stat-value">{{ userStats.inProgressAlerts }}</p>
+                    <p class="stat-label">En cours</p>
                   </div>
                 </div>
                 <div class="stat-box">
@@ -151,8 +169,8 @@
                     <i class="fas fa-check-circle"></i>
                   </div>
                   <div class="stat-info">
-                    <p class="stat-value">{{ userStats.resolvedAlerts }}</p>
-                    <p class="stat-label">Résolus</p>
+                    <p class="stat-value">{{ userStats.completedAlerts }}</p>
+                    <p class="stat-label">Terminés</p>
                   </div>
                 </div>
               </div>
@@ -212,7 +230,9 @@ const formData = ref({
 
 const userStats = ref({
   totalAlerts: 0,
-  resolvedAlerts: 0
+  newAlerts: 0,
+  inProgressAlerts: 0,
+  completedAlerts: 0
 });
 
 const activeTab = ref('profile');
@@ -246,9 +266,25 @@ const loadUserInfo = () => {
 const loadUserStats = async () => {
   try {
     const alerts = await fetchUserRoadAlerts(userUID.value);
+    
+    // Total
     userStats.value.totalAlerts = alerts.length;
-    userStats.value.resolvedAlerts = alerts.filter(
-      alert => alert.status.toLowerCase() === 'terminé' || alert.status.toLowerCase() === 'termine'
+    
+    // Nouveaux signalements (status === 'nouveau')
+    userStats.value.newAlerts = alerts.filter(
+      alert => alert.status.toLowerCase() === 'nouveau'
+    ).length;
+    
+    // En cours (status === 'en_cours')
+    userStats.value.inProgressAlerts = alerts.filter(
+      alert => alert.status.toLowerCase() === 'en_cours' || 
+               alert.status.toLowerCase() === 'en cours'
+    ).length;
+    
+    // Terminés (status === 'termine' ou 'terminé')
+    userStats.value.completedAlerts = alerts.filter(
+      alert => alert.status.toLowerCase() === 'terminé' || 
+               alert.status.toLowerCase() === 'termine'
     ).length;
   } catch (error) {
     console.error('Erreur lors du chargement des stats:', error);

@@ -13,5 +13,17 @@ export { notificationService, type Notification } from './notificationService';
 // Service utilisateurs
 export { userService, type UserStatus, type UserData } from './userService';
 
+// Service de gestion de photos
+export {
+  uploadProfilePhoto,
+  getProfilePhoto,
+  deleteProfilePhoto,
+  addSignalementPhoto,
+  getSignalementPhotos,
+  setMainSignalementPhoto,
+  deleteSignalementPhoto,
+  deleteAllSignalementPhotos,
+} from './photoService';
+
 // Configuration Firebase
 export { auth, db, app, getRemoteConfigValue } from './firebase';

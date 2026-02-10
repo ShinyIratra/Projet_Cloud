@@ -41,8 +41,39 @@
         </p>
       </div>
 
-      <div class="rounded-2xl overflow-hidden mb-6 h-40 bg-slate-100 flex items-center justify-center">
-        <i class="fas fa-road text-6xl text-slate-300"></i>
+      <!-- Galerie de photos style Pinterest -->
+      <div v-if="alert.photos && alert.photos.length > 0" class="mb-6">
+        <p class="text-[10px] uppercase font-bold text-slate-400 mb-3 flex items-center">
+          <i class="fas fa-images mr-2"></i> 
+          Photos ({{ alert.photos.length }})
+        </p>
+        
+        <!-- Grille responsive style Pinterest -->
+        <div class="photos-grid-pinterest">
+          <div 
+            v-for="(photo, index) in alert.photos" 
+            :key="index"
+            class="photo-card"
+            :class="{ 'photo-featured': index === 0 }"
+            @click="viewPhoto(photo)"
+          >
+            <div class="photo-wrapper">
+              <img :src="photo" :alt="`Photo ${index + 1}`" class="photo-img" />
+              <div class="photo-overlay">
+                <i class="fas fa-search-plus"></i>
+              </div>
+              <span v-if="index === 0" class="photo-badge-featured">
+                <i class="fas fa-star mr-1"></i>Principale
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Si pas de photo, afficher un placeholder -->
+      <div v-else class="photo-placeholder mb-6">
+        <i class="fas fa-image text-slate-300 text-5xl mb-2"></i>
+        <p class="text-slate-400 text-xs">Aucune photo disponible</p>
       </div>
 
       <div class="flex items-center justify-between p-4 bg-blue-50 rounded-2xl">
@@ -57,15 +88,30 @@
         </div>
         <i class="fas fa-chevron-right text-blue-300"></i>
       </div>
-      
-      <button class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold mt-6 shadow-lg active:scale-95 transition">
-        Suivre l'avancement
-      </button>
+
+    </div>
+
+    <!-- Modal de visualisation de photo en plein écran -->
+    <div 
+      v-if="viewingPhoto" 
+      class="photo-viewer"
+      @click="closePhotoViewer"
+    >
+      <div class="photo-viewer-content" @click.stop>
+        <button class="photo-viewer-close" @click="closePhotoViewer">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="photo-viewer-image-wrapper" @click="closePhotoViewer">
+          <img :src="viewingPhoto" alt="Photo en plein écran" class="photo-viewer-image" @click.stop />
+        </div>
+        <p class="photo-viewer-hint">Tapez n'importe où pour fermer</p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { type RoadAlert } from '../utils/roadAlertApi';
 
 interface Props {
@@ -77,6 +123,8 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   close: [];
 }>();
+
+const viewingPhoto = ref<string | null>(null);
 
 const close = () => {
   emit('close');
@@ -116,6 +164,14 @@ const formatDate = (dateString: string) => {
 const formatBudget = (budget: number) => {
   return new Intl.NumberFormat('fr-MG', { style: 'currency', currency: 'MGA', maximumFractionDigits: 0 }).format(budget);
 };
+
+const viewPhoto = (photo: string) => {
+  viewingPhoto.value = photo;
+};
+
+const closePhotoViewer = () => {
+  viewingPhoto.value = null;
+};
 </script>
 
 <style scoped>
@@ -148,17 +204,232 @@ const formatBudget = (budget: number) => {
   cursor: pointer;
 }
 
+/* Photo Viewer (Modal plein écran) */
+.photo-viewer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+  padding: 20px;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.photo-viewer-content {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  height: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-viewer-image-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.photo-viewer-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.photo-viewer-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.photo-viewer-image {
+  max-width: 100%;
+  max-height: calc(100% - 40px);
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.photo-viewer-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+/* Responsive pour tablettes */
+@media (min-width: 768px) {
+  .photo-viewer-close {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+  
+  .photo-viewer-image {
+    max-height: 85vh;
+    border-radius: 16px;
+  }
+  
+  .photo-viewer-hint {
+    font-size: 14px;
+    padding: 10px 20px;
+  }
+}
+
+/* Grille Photos Style Pinterest */
+.photos-grid-pinterest {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.photo-card {
+  position: relative;
+  cursor: pointer;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f8fafc;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.photo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Photo principale prend toute la largeur */
+.photo-featured {
+  grid-column: span 2;
+}
+
+.photo-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+/* Ratio différent pour la photo principale */
+.photo-featured .photo-img {
+  aspect-ratio: 16/10;
+}
+
+.photo-card:not(.photo-featured) .photo-img {
+  aspect-ratio: 1;
+}
+
+.photo-card:hover .photo-img {
+  transform: scale(1.05);
+}
+
+/* Overlay au survol */
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  color: white;
+  font-size: 24px;
+}
+
+.photo-card:hover .photo-overlay {
+  opacity: 1;
+}
+
+/* Badge photo principale */
+.photo-badge-featured {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+}
+
+/* Placeholder pour les signalements sans photos */
+.photo-placeholder {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 2px dashed #e2e8f0;
+  border-radius: 20px;
+  padding: 48px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 /* Utility classes */
 .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
 .pb-10 { padding-bottom: 2.5rem; }
 .pb-40 { padding-bottom: 10rem; }
-.mb-4 { margin-bottom: 1rem; }
+.mb-1 { margin-bottom: 0.25rem; }
 .mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
 .mb-6 { margin-bottom: 1.5rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-3 { margin-top: 0.75rem; }
 .mt-6 { margin-top: 1.5rem; }
+.mr-1 { margin-right: 0.25rem; }
 .mr-2 { margin-right: 0.5rem; }
+.gap-2 { gap: 0.5rem; }
 .gap-3 { gap: 0.75rem; }
 .space-x-3 > * + * { margin-left: 0.75rem; }
 .p-3 { padding: 0.75rem; }
@@ -169,8 +440,10 @@ const formatBudget = (budget: number) => {
 .w-10 { width: 2.5rem; }
 .h-10 { height: 2.5rem; }
 .h-40 { height: 10rem; }
+.h-52 { height: 13rem; }
 .text-xs { font-size: 0.75rem; line-height: 1rem; }
 .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.text-5xl { font-size: 3rem; line-height: 1; }
 .font-bold { font-weight: 700; }
 .font-extrabold { font-weight: 800; }
 .font-black { font-weight: 900; }
@@ -186,10 +459,15 @@ const formatBudget = (budget: number) => {
 .overflow-hidden { overflow: hidden; }
 .grid { display: grid; }
 .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .flex { display: flex; }
 .items-start { align-items: flex-start; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
+.aspect-square { aspect-ratio: 1; }
+.object-cover { object-fit: cover; }
+.cursor-pointer { cursor: pointer; }
+.hover\:opacity-80:hover { opacity: 0.8; }
 .bg-slate-50 { background-color: #f8fafc; }
 .bg-slate-100 { background-color: #f1f5f9; }
 .bg-slate-400 { color: #94a3b8; }
