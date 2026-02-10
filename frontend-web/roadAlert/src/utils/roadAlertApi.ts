@@ -3,6 +3,8 @@ import { API_URL } from './config';
 export interface RoadAlert {
   id?: string;
   surface: number;
+  prix_m2: number;
+  niveau: number;
   budget: number;
   concerned_entreprise: string;
   status: string;

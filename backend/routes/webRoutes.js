@@ -431,6 +431,49 @@ router.patch('/signalements/status', verifyToken, isManager, webSignalementContr
  */
 router.get('/entreprises', webSignalementController.getEntreprises);
 
+// Configuration prix par m2
+/**
+ * @swagger
+ * /api/web/config/prix-m2:
+ *   get:
+ *     summary: Récupérer le prix par m² par défaut
+ *     tags: [Web Signalements]
+ *     responses:
+ *       200:
+ *         description: Prix par m² récupéré
+ */
+router.get('/config/prix-m2', webSignalementController.getDefaultPrixM2);
+
+/**
+ * @swagger
+ * /api/web/config/prix-m2:
+ *   put:
+ *     summary: Mettre à jour le prix par m² par défaut (Manager uniquement)
+ *     tags: [Web Signalements]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prix_m2
+ *             properties:
+ *               prix_m2:
+ *                 type: number
+ *                 example: 100000
+ *     responses:
+ *       200:
+ *         description: Prix par m² mis à jour
+ *       400:
+ *         description: Données invalides
+ *       403:
+ *         description: Accès refusé (pas manager)
+ */
+router.put('/config/prix-m2', verifyToken, isManager, webSignalementController.updateDefaultPrixM2);
+
 /**
  * @swagger
  * /api/web/signalements/performance:

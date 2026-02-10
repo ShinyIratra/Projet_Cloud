@@ -75,7 +75,9 @@ CREATE TABLE signalements(
    Id_signalements SERIAL,
    titre VARCHAR(255),
    surface NUMERIC(15,2)  NOT NULL,
-   budget NUMERIC(15,2)  NOT NULL,
+   prix_m2 NUMERIC(15,2) NOT NULL DEFAULT 100000,
+   niveau INTEGER NOT NULL DEFAULT 1 CHECK (niveau >= 1 AND niveau <= 10),
+   budget NUMERIC(15,2) GENERATED ALWAYS AS (prix_m2 * niveau * surface) STORED,
    position GEOGRAPHY(POINT, 4326) NOT NULL,
    date_signalement TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -138,7 +140,8 @@ INSERT INTO statut_signalement (code, label, pourcentage) VALUES
 
 INSERT INTO configurations (code, description, valeur) VALUES
 ('MAX_LOGIN_ATTEMPTS', 'Nombre max de tentatives de connexion', '3'),
-('SESSION_TIMEOUT', 'Duree de session en secondes', '3600');
+('SESSION_TIMEOUT', 'Duree de session en secondes', '3600'),
+('PRIX_M2_DEFAUT', 'Prix par m2 forfaitaire par defaut (en Ariary)', '100000');
 
 INSERT INTO entreprise (nom) VALUES
 ('COLAS Madagascar'),
@@ -192,6 +195,8 @@ SELECT
     s.Id_signalements,
     s.titre,
     s.surface,
+    s.prix_m2,
+    s.niveau,
     s.budget,
     get_latitude(s.position) AS latitude,
     get_longitude(s.position) AS longitude,

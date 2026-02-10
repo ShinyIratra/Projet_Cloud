@@ -13,6 +13,8 @@ const webSignalementController = {
                     s.id_firebase,
                     s.titre,
                     s.surface,
+                    s.prix_m2,
+                    s.niveau,
                     s.budget,
                     get_latitude(s.position) as lattitude,
                     get_longitude(s.position) as longitude,
@@ -74,6 +76,8 @@ const webSignalementController = {
                 return {
                     ...row,
                     surface: parseFloat(row.surface) || 0,
+                    prix_m2: parseFloat(row.prix_m2) || 0,
+                    niveau: parseInt(row.niveau) || 1,
                     budget: parseFloat(row.budget) || 0,
                     lattitude: parseFloat(row.lattitude) || 0,
                     longitude: parseFloat(row.longitude) || 0,
@@ -90,7 +94,7 @@ const webSignalementController = {
     },
 
     async create(req, res) {
-        const { surface, budget, lattitude, longitude, entreprise, status, userId } = req.body;
+        const { surface, prix_m2, niveau, lattitude, longitude, entreprise, status, userId } = req.body;
 
         try {
             // Valider les champs obligatoires
@@ -103,6 +107,17 @@ const webSignalementController = {
             if (!userId) {
                 return res.status(400).json(new ApiModel('error', null, 'Vous devez être connecté pour créer un signalement'));
             }
+            if (niveau !== undefined && (niveau < 1 || niveau > 10)) {
+                return res.status(400).json(new ApiModel('error', null, 'Le niveau doit être entre 1 et 10'));
+            }
+
+            // Récupérer le prix_m2 par défaut si non fourni
+            let finalPrixM2 = prix_m2;
+            if (finalPrixM2 === undefined || finalPrixM2 === null) {
+                const configResult = await query("SELECT valeur FROM configurations WHERE code = 'PRIX_M2_DEFAUT'");
+                finalPrixM2 = configResult.rows.length > 0 ? parseFloat(configResult.rows[0].valeur) : 100000;
+            }
+            const finalNiveau = niveau || 1;
 
             // Vérifier que l'utilisateur existe
             const userCheck = await query('SELECT Id_users FROM users WHERE Id_users = $1', [userId]);
@@ -132,14 +147,15 @@ const webSignalementController = {
             // Déterminer le code du statut (par défaut: nouveau)
             const statusCode = status || 'nouveau';
 
-            // Insérer le signalement (sans Id_statut_signalement car le statut est dans Historique)
+            // Insérer le signalement (budget est calculé automatiquement: prix_m2 * niveau * surface)
             const result = await query(`
-                INSERT INTO signalements (surface, budget, position, Id_entreprise, Id_users)
-                VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, $6)
-                RETURNING Id_signalements, get_latitude(position) as lattitude, get_longitude(position) as longitude, date_signalement
-            `, [surface, budget || 0, longitude, lattitude, entrepriseId, userId]);
+                INSERT INTO signalements (surface, prix_m2, niveau, position, Id_entreprise, Id_users)
+                VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326)::geography, $6, $7)
+                RETURNING Id_signalements, get_latitude(position) as lattitude, get_longitude(position) as longitude, date_signalement, budget
+            `, [surface, finalPrixM2, finalNiveau, longitude, lattitude, entrepriseId, userId]);
 
             const newId = result.rows[0].id_signalements;
+            const computedBudget = parseFloat(result.rows[0].budget) || 0;
 
             // Insérer le statut initial dans Historique_StatutSignalements
             await query(`
@@ -154,7 +170,9 @@ const webSignalementController = {
                 await docRef.set({
                     id: docRef.id,
                     surface: parseFloat(surface),
-                    budget: parseFloat(budget || 0),
+                    prix_m2: parseFloat(finalPrixM2),
+                niveau: parseInt(finalNiveau),
+                budget: computedBudget,
                     lattitude: parseFloat(lattitude),
                     longitude: parseFloat(longitude),
                     status: firebaseStatus,
@@ -226,7 +244,7 @@ const webSignalementController = {
     },
 
     async update(req, res) {
-        const { id, surface, budget, entreprise, status } = req.body;
+        const { id, surface, prix_m2, niveau, entreprise, status } = req.body;
 
         try {
             // Vérifier que le signalement existe
@@ -248,9 +266,16 @@ const webSignalementController = {
                 updates.push(`surface = $${paramIndex++}`);
                 values.push(surface);
             }
-            if (budget !== undefined && budget !== null) {
-                updates.push(`budget = $${paramIndex++}`);
-                values.push(budget);
+            if (prix_m2 !== undefined && prix_m2 !== null) {
+                updates.push(`prix_m2 = $${paramIndex++}`);
+                values.push(prix_m2);
+            }
+            if (niveau !== undefined && niveau !== null) {
+                if (niveau < 1 || niveau > 10) {
+                    return res.status(400).json(new ApiModel('error', null, 'Le niveau doit être entre 1 et 10'));
+                }
+                updates.push(`niveau = $${paramIndex++}`);
+                values.push(niveau);
             }
             if (entreprise !== undefined) {
                 // Chercher l'ID de l'entreprise
@@ -290,6 +315,54 @@ const webSignalementController = {
                 sql += updates.join(', ') + ` WHERE Id_signalements = $${paramIndex}`;
                 values.push(id);
                 await query(sql, values);
+            }
+
+            // Synchroniser vers Firebase
+            const signalement = await query(`
+                SELECT s.*, ss.code as status_code, e.nom as entreprise_nom,
+                       get_latitude(s.position) as lattitude, get_longitude(s.position) as longitude
+                FROM signalements s
+                LEFT JOIN (
+                    SELECT DISTINCT ON (Id_signalements) Id_signalements, Id_statut_signalement
+                    FROM Historique_StatutSignalements ORDER BY Id_signalements, update_at DESC
+                ) hss ON s.Id_signalements = hss.Id_signalements
+                LEFT JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
+                LEFT JOIN entreprise e ON s.Id_entreprise = e.Id_entreprise
+                WHERE s.Id_signalements = $1
+            `, [id]);
+
+            if (signalement.rows.length > 0) {
+                const row = signalement.rows[0];
+                let firebaseStatus = 'nouveau';
+                if (row.status_code === 'en_cours') firebaseStatus = 'en cours';
+                else if (row.status_code === 'termine') firebaseStatus = 'termine';
+
+                // Chercher le document Firebase correspondant
+                let docId = row.id_firebase;
+                if (!docId) {
+                    const snapshot = await db.collection('road_alerts')
+                        .where('lattitude', '==', parseFloat(row.lattitude))
+                        .where('longitude', '==', parseFloat(row.longitude))
+                        .get();
+
+                    if (!snapshot.empty) {
+                        docId = snapshot.docs[0].id;
+                        // Mettre à jour id_firebase
+                        await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docId, id]);
+                    }
+                }
+
+                if (docId) {
+                    await db.collection('road_alerts').doc(docId).update({
+                        surface: parseFloat(row.surface),
+                        prix_m2: parseFloat(row.prix_m2),
+                        niveau: parseInt(row.niveau),
+                        budget: parseFloat(row.budget),
+                        status: firebaseStatus,
+                        concerned_entreprise: row.entreprise_nom || '',
+                        updated_at: new Date().toISOString()
+                    });
+                }
             }
 
             res.json(new ApiModel('success', { id }, 'Signalement mis à jour avec succès'));
@@ -358,6 +431,8 @@ const webSignalementController = {
                     Id_signalements as id,
                     titre,
                     surface,
+                    prix_m2,
+                    niveau,
                     budget,
                     date_signalement,
                     COALESCE(statut_code, 'nouveau') as statut_code,
@@ -387,6 +462,8 @@ const webSignalementController = {
                 signalements: signalements.rows.map(row => ({
                     ...row,
                     surface: parseFloat(row.surface) || 0,
+                    prix_m2: parseFloat(row.prix_m2) || 0,
+                    niveau: parseInt(row.niveau) || 1,
                     budget: parseFloat(row.budget) || 0,
                     avancement: parseInt(row.avancement) || 0,
                     duree_jours: row.duree_jours ? parseFloat(row.duree_jours) : null,
@@ -420,6 +497,33 @@ const webSignalementController = {
         } catch (error) {
             console.error('Erreur getPerformance:', error);
             res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération des données de performance'));
+        }
+    },
+
+    // Récupérer le prix par m2 par défaut depuis la configuration
+    async getDefaultPrixM2(req, res) {
+        try {
+            const result = await query("SELECT valeur FROM configurations WHERE code = 'PRIX_M2_DEFAUT'");
+            const prixM2 = result.rows.length > 0 ? parseFloat(result.rows[0].valeur) : 100000;
+            res.json(new ApiModel('success', { prix_m2: prixM2 }, null));
+        } catch (error) {
+            console.error('Erreur getDefaultPrixM2:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération du prix par m²'));
+        }
+    },
+
+    // Mettre à jour le prix par m2 par défaut
+    async updateDefaultPrixM2(req, res) {
+        const { prix_m2 } = req.body;
+        try {
+            if (prix_m2 === undefined || prix_m2 === null || prix_m2 <= 0) {
+                return res.status(400).json(new ApiModel('error', null, 'Le prix par m² doit être supérieur à 0'));
+            }
+            await query("UPDATE configurations SET valeur = $1 WHERE code = 'PRIX_M2_DEFAUT'", [prix_m2.toString()]);
+            res.json(new ApiModel('success', { prix_m2 }, 'Prix par m² par défaut mis à jour'));
+        } catch (error) {
+            console.error('Erreur updateDefaultPrixM2:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la mise à jour du prix par m²'));
         }
     }
 };

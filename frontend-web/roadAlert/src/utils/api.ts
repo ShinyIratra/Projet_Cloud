@@ -4,6 +4,8 @@ export interface Signalement {
   id: number;
   titre?: string;
   surface: number;
+  prix_m2: number;
+  niveau: number;
   budget: number;
   lattitude: number;
   longitude: number;
@@ -246,5 +248,25 @@ export const api = {
     });
     const data = await handleResponse(res, 'Erreur lors du chargement des données de performance');
     return data.data;
+  },
+
+  async getDefaultPrixM2(): Promise<number> {
+    try {
+      const res = await fetch(`${API_URL}/api/web/config/prix-m2`);
+      const data = await res.json();
+      return data.data?.prix_m2 || 100000;
+    } catch (error) {
+      console.error('Erreur chargement prix m2:', error);
+      return 100000;
+    }
+  },
+
+  async updateDefaultPrixM2(prix_m2: number): Promise<void> {
+    const res = await fetch(`${API_URL}/api/web/config/prix-m2`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ prix_m2 }),
+    });
+    await handleResponse(res, 'Erreur lors de la mise à jour du prix par m²');
   },
 };
