@@ -126,6 +126,10 @@ const Home: React.FC = () => {
         api.getSignalements(),
         api.getStats()
       ]);
+      console.log('[HOME] Données chargées:', {
+        totalSignalements: signalementsData.length,
+        avecPhotos: signalementsData.filter(s => s.photo_principale).length
+      });
       setSignalements(signalementsData);
       setStats(statsData);
     } catch (err) {

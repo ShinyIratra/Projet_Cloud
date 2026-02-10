@@ -114,7 +114,20 @@ export const api = {
     try {
       const res = await fetch(`${API_URL}/api/web/signalements`);
       const data = await res.json();
-      return data.data || [];
+      const signalements = data.data || [];
+      
+      // Log pour debug des photos
+      const withPhotos = signalements.filter((s: Signalement) => s.photo_principale || (s.photos && s.photos.length > 0));
+      console.log(`[FRONTEND] ${signalements.length} signalements récupérés, ${withPhotos.length} avec photos`);
+      if (withPhotos.length > 0) {
+        console.log('[FRONTEND] Exemple de signalement avec photo:', {
+          id: withPhotos[0].id,
+          hasPhotoPrincipale: !!withPhotos[0].photo_principale,
+          photosCount: withPhotos[0].photos?.length || 0
+        });
+      }
+      
+      return signalements;
     } catch (error) {
       console.error('Erreur chargement signalements:', error);
       return [];

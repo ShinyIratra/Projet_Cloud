@@ -10,7 +10,15 @@ const serviceAccount = JSON.parse(
 );
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+});
+
+// Configurer Firestore avec un timeout plus long
+const db = admin.firestore();
+db.settings({
+  ignoreUndefinedProperties: true,
+  preferredTimestampType: 'timestamp'
 });
 
 // Fonction pour récupérer une valeur de Remote Config
@@ -25,8 +33,6 @@ async function getRemoteConfigValue(key) {
         return null;
     }
 }
-
-const db = admin.firestore();
 
 export { admin, db, getRemoteConfigValue };
 export default admin;
