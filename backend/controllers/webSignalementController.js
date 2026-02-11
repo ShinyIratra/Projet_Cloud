@@ -10,8 +10,11 @@ const webSignalementController = {
             const result = await query(`
                 SELECT 
                     s.Id_signalements as id,
+                    s.id_firebase,
                     s.titre,
                     s.surface,
+                    s.prix_m2,
+                    s.niveau,
                     s.budget,
                     get_latitude(s.position) as lattitude,
                     get_longitude(s.position) as longitude,
@@ -48,14 +51,40 @@ const webSignalementController = {
                 ORDER BY s.date_signalement DESC
             `);
             
-            // Convertir les valeurs numériques
-            const data = result.rows.map(row => ({
-                ...row,
-                surface: parseFloat(row.surface) || 0,
-                budget: parseFloat(row.budget) || 0,
-                lattitude: parseFloat(row.lattitude) || 0,
-                longitude: parseFloat(row.longitude) || 0
-            }));
+            // Récupérer les photos depuis Firebase (optionnel - timeout court pour mode hors ligne)
+            let photosMap = new Map();
+            try {
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Firebase timeout')), 3000)
+                );
+                const firebasePromise = db.collection('road_alerts').get();
+                const firebaseSnapshot = await Promise.race([firebasePromise, timeoutPromise]);
+                firebaseSnapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    photosMap.set(doc.id, {
+                        photo_principale: data.photo_principale || null,
+                        photos: data.photos || []
+                    });
+                });
+            } catch (firebaseError) {
+                console.warn('Firebase non accessible (mode hors ligne) - photos non disponibles:', firebaseError.message);
+            }
+            
+            // Convertir les valeurs numériques et ajouter les photos si disponibles
+            const data = result.rows.map(row => {
+                const firebasePhotos = row.id_firebase ? photosMap.get(row.id_firebase) : null;
+                return {
+                    ...row,
+                    surface: parseFloat(row.surface) || 0,
+                    prix_m2: parseFloat(row.prix_m2) || 0,
+                    niveau: parseInt(row.niveau) || 1,
+                    budget: parseFloat(row.budget) || 0,
+                    lattitude: parseFloat(row.lattitude) || 0,
+                    longitude: parseFloat(row.longitude) || 0,
+                    photo_principale: firebasePhotos?.photo_principale || null,
+                    photos: firebasePhotos?.photos || []
+                };
+            });
             
             res.json(new ApiModel('success', data, null));
         } catch (error) {
@@ -65,7 +94,7 @@ const webSignalementController = {
     },
 
     async create(req, res) {
-        const { surface, budget, lattitude, longitude, entreprise, status, userId } = req.body;
+        const { surface, prix_m2, niveau, lattitude, longitude, entreprise, status, userId } = req.body;
 
         try {
             // Valider les champs obligatoires
@@ -78,6 +107,17 @@ const webSignalementController = {
             if (!userId) {
                 return res.status(400).json(new ApiModel('error', null, 'Vous devez être connecté pour créer un signalement'));
             }
+            if (niveau !== undefined && (niveau < 1 || niveau > 10)) {
+                return res.status(400).json(new ApiModel('error', null, 'Le niveau doit être entre 1 et 10'));
+            }
+
+            // Récupérer le prix_m2 par défaut si non fourni
+            let finalPrixM2 = prix_m2;
+            if (finalPrixM2 === undefined || finalPrixM2 === null) {
+                const configResult = await query("SELECT valeur FROM configurations WHERE code = 'PRIX_M2_DEFAUT'");
+                finalPrixM2 = configResult.rows.length > 0 ? parseFloat(configResult.rows[0].valeur) : 100000;
+            }
+            const finalNiveau = niveau || 1;
 
             // Vérifier que l'utilisateur existe
             const userCheck = await query('SELECT Id_users FROM users WHERE Id_users = $1', [userId]);
@@ -107,14 +147,15 @@ const webSignalementController = {
             // Déterminer le code du statut (par défaut: nouveau)
             const statusCode = status || 'nouveau';
 
-            // Insérer le signalement (sans Id_statut_signalement car le statut est dans Historique)
+            // Insérer le signalement (budget est calculé automatiquement: prix_m2 * niveau * surface)
             const result = await query(`
-                INSERT INTO signalements (surface, budget, position, Id_entreprise, Id_users)
-                VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, $6)
-                RETURNING Id_signalements, get_latitude(position) as lattitude, get_longitude(position) as longitude, date_signalement
-            `, [surface, budget || 0, longitude, lattitude, entrepriseId, userId]);
+                INSERT INTO signalements (surface, prix_m2, niveau, position, Id_entreprise, Id_users)
+                VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326)::geography, $6, $7)
+                RETURNING Id_signalements, get_latitude(position) as lattitude, get_longitude(position) as longitude, date_signalement, budget
+            `, [surface, finalPrixM2, finalNiveau, longitude, lattitude, entrepriseId, userId]);
 
             const newId = result.rows[0].id_signalements;
+            const computedBudget = parseFloat(result.rows[0].budget) || 0;
 
             // Insérer le statut initial dans Historique_StatutSignalements
             await query(`
@@ -122,24 +163,30 @@ const webSignalementController = {
                 VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
             `, [newId, statusCode]);
 
-            // Créer également dans Firebase
-            const firebaseStatus = statusCode === 'en_cours' ? 'en cours' : (statusCode === 'termine' ? 'termine' : 'nouveau');
-            const docRef = db.collection('road_alerts').doc();
-            await docRef.set({
-                id: docRef.id,
-                surface: parseFloat(surface),
-                budget: parseFloat(budget || 0),
-                lattitude: parseFloat(lattitude),
-                longitude: parseFloat(longitude),
-                status: firebaseStatus,
-                concerned_entreprise: entreprise || '',
-                date_alert: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                UID: newId.toString()
-            });
+            // Créer également dans Firebase (optionnel - sera synchronisé plus tard si hors ligne)
+            try {
+                const firebaseStatus = statusCode === 'en_cours' ? 'en cours' : (statusCode === 'termine' ? 'termine' : 'nouveau');
+                const docRef = db.collection('road_alerts').doc();
+                await docRef.set({
+                    id: docRef.id,
+                    surface: parseFloat(surface),
+                    prix_m2: parseFloat(finalPrixM2),
+                niveau: parseInt(finalNiveau),
+                budget: computedBudget,
+                    lattitude: parseFloat(lattitude),
+                    longitude: parseFloat(longitude),
+                    status: firebaseStatus,
+                    concerned_entreprise: entreprise || '',
+                    date_alert: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    UID: newId.toString()
+                });
 
-            // Mettre à jour l'id_firebase dans Postgres
-            await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docRef.id, newId]);
+                // Mettre à jour l'id_firebase dans Postgres
+                await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docRef.id, newId]);
+            } catch (firebaseError) {
+                console.warn('Firebase create skipped (offline mode):', firebaseError.message);
+            }
 
             res.status(201).json(new ApiModel('success', { id: newId }, 'Signalement créé avec succès'));
         } catch (error) {
@@ -197,7 +244,7 @@ const webSignalementController = {
     },
 
     async update(req, res) {
-        const { id, surface, budget, entreprise, status } = req.body;
+        const { id, surface, prix_m2, niveau, entreprise, status } = req.body;
 
         try {
             // Vérifier que le signalement existe
@@ -219,9 +266,16 @@ const webSignalementController = {
                 updates.push(`surface = $${paramIndex++}`);
                 values.push(surface);
             }
-            if (budget !== undefined && budget !== null) {
-                updates.push(`budget = $${paramIndex++}`);
-                values.push(budget);
+            if (prix_m2 !== undefined && prix_m2 !== null) {
+                updates.push(`prix_m2 = $${paramIndex++}`);
+                values.push(prix_m2);
+            }
+            if (niveau !== undefined && niveau !== null) {
+                if (niveau < 1 || niveau > 10) {
+                    return res.status(400).json(new ApiModel('error', null, 'Le niveau doit être entre 1 et 10'));
+                }
+                updates.push(`niveau = $${paramIndex++}`);
+                values.push(niveau);
             }
             if (entreprise !== undefined) {
                 // Chercher l'ID de l'entreprise
@@ -301,6 +355,8 @@ const webSignalementController = {
                 if (docId) {
                     await db.collection('road_alerts').doc(docId).update({
                         surface: parseFloat(row.surface),
+                        prix_m2: parseFloat(row.prix_m2),
+                        niveau: parseInt(row.niveau),
                         budget: parseFloat(row.budget),
                         status: firebaseStatus,
                         concerned_entreprise: row.entreprise_nom || '',
@@ -334,10 +390,45 @@ const webSignalementController = {
                 return res.status(400).json(new ApiModel('error', null, 'Statut invalide. Utilisez: nouveau, en_cours ou termine'));
             }
 
-            // Vérifier que le signalement existe
-            const existCheck = await query('SELECT Id_signalements, id_firebase FROM signalements WHERE Id_signalements = $1', [id]);
-            if (existCheck.rows.length === 0) {
+            // Récupérer les informations du signalement y compris le statut actuel
+            const signalementQuery = await query(`
+                SELECT 
+                    s.Id_signalements, 
+                    s.id_firebase,
+                    (SELECT ss.code 
+                     FROM Historique_StatutSignalements hss
+                     JOIN statut_signalement ss ON hss.Id_statut_signalement = ss.Id_statut_signalement
+                     WHERE hss.Id_signalements = s.Id_signalements
+                     ORDER BY hss.update_at DESC
+                     LIMIT 1) as current_status
+                FROM signalements s
+                WHERE s.Id_signalements = $1
+            `, [id]);
+
+            if (signalementQuery.rows.length === 0) {
                 return res.status(404).json(new ApiModel('error', null, 'Signalement non trouvé'));
+            }
+
+            const signalement = signalementQuery.rows[0];
+            const oldStatus = signalement.current_status;
+            const firebaseId = signalement.id_firebase;
+
+            // Ne rien faire si le statut est le même
+            if (oldStatus === status) {
+                return res.json(new ApiModel('success', { id, status }, 'Le statut est déjà à jour'));
+            }
+
+            // Récupérer l'UID de l'utilisateur depuis Firebase
+            let userUID = null;
+            if (firebaseId) {
+                try {
+                    const roadAlertDoc = await db.collection('road_alerts').doc(firebaseId).get();
+                    if (roadAlertDoc.exists) {
+                        userUID = roadAlertDoc.data().UID;
+                    }
+                } catch (firebaseError) {
+                    console.error('Erreur lors de la récupération du UID depuis Firebase:', firebaseError);
+                }
             }
 
             // Insérer le nouveau statut dans l'historique
@@ -346,40 +437,39 @@ const webSignalementController = {
                 VALUES ($1, (SELECT Id_statut_signalement FROM statut_signalement WHERE code = $2))
             `, [id, status]);
 
-            // Récupérer les infos mises à jour
-            const result = await query(`
-                SELECT get_latitude(position) as lattitude, get_longitude(position) as longitude, 
-                       date_signalement, id_firebase
-                FROM signalements WHERE Id_signalements = $1
-            `, [id]);
-
-            if (result.rows.length > 0) {
-                // Synchroniser vers Firebase
-                const row = result.rows[0];
-                let firebaseStatus = 'nouveau';
-                if (status === 'en_cours') firebaseStatus = 'en cours';
-                else if (status === 'termine') firebaseStatus = 'termine';
-
-                // Chercher le document Firebase correspondant par id_firebase ou coordonnées
-                let docId = row.id_firebase;
-                if (!docId) {
-                    const snapshot = await db.collection('road_alerts')
-                        .where('lattitude', '==', parseFloat(row.lattitude))
-                        .where('longitude', '==', parseFloat(row.longitude))
-                        .get();
-                    
-                    if (!snapshot.empty) {
-                        docId = snapshot.docs[0].id;
-                        // Mettre à jour id_firebase dans Postgres
-                        await query('UPDATE signalements SET id_firebase = $1 WHERE Id_signalements = $2', [docId, id]);
-                    }
-                }
-
-                if (docId) {
-                    await db.collection('road_alerts').doc(docId).update({
-                        status: firebaseStatus,
+            // Mettre à jour le statut dans Firebase si le signalement y existe
+            if (firebaseId) {
+                try {
+                    const roadAlertRef = db.collection('road_alerts').doc(firebaseId);
+                    await roadAlertRef.update({
+                        status: status,
                         updated_at: new Date().toISOString()
                     });
+                } catch (firebaseError) {
+                    console.error('Erreur lors de la mise à jour Firebase:', firebaseError);
+                    // Continue même si Firebase échoue
+                }
+            }
+
+            // Créer une notification pour l'utilisateur
+            if (userUID) {
+                try {
+                    const notificationMessage = `Le statut de votre signalement a changé de "${oldStatus}" à "${status}"`;
+                    const notificationRef = db.collection('notifications').doc();
+                    
+                    await notificationRef.set({
+                        id: notificationRef.id,
+                        UID: userUID,
+                        roadAlertId: firebaseId || id.toString(),
+                        oldStatus: oldStatus,
+                        newStatus: status,
+                        message: notificationMessage,
+                        read: false,
+                        createdAt: new Date().toISOString()
+                    });
+                } catch (notifError) {
+                    console.error('Erreur lors de la création de la notification:', notifError);
+                    // Continue même si la notification échoue
                 }
             }
 
@@ -412,6 +502,8 @@ const webSignalementController = {
                     Id_signalements as id,
                     titre,
                     surface,
+                    prix_m2,
+                    niveau,
                     budget,
                     date_signalement,
                     COALESCE(statut_code, 'nouveau') as statut_code,
@@ -441,6 +533,8 @@ const webSignalementController = {
                 signalements: signalements.rows.map(row => ({
                     ...row,
                     surface: parseFloat(row.surface) || 0,
+                    prix_m2: parseFloat(row.prix_m2) || 0,
+                    niveau: parseInt(row.niveau) || 1,
                     budget: parseFloat(row.budget) || 0,
                     avancement: parseInt(row.avancement) || 0,
                     duree_jours: row.duree_jours ? parseFloat(row.duree_jours) : null,
@@ -474,6 +568,33 @@ const webSignalementController = {
         } catch (error) {
             console.error('Erreur getPerformance:', error);
             res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération des données de performance'));
+        }
+    },
+
+    // Récupérer le prix par m2 par défaut depuis la configuration
+    async getDefaultPrixM2(req, res) {
+        try {
+            const result = await query("SELECT valeur FROM configurations WHERE code = 'PRIX_M2_DEFAUT'");
+            const prixM2 = result.rows.length > 0 ? parseFloat(result.rows[0].valeur) : 100000;
+            res.json(new ApiModel('success', { prix_m2: prixM2 }, null));
+        } catch (error) {
+            console.error('Erreur getDefaultPrixM2:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la récupération du prix par m²'));
+        }
+    },
+
+    // Mettre à jour le prix par m2 par défaut
+    async updateDefaultPrixM2(req, res) {
+        const { prix_m2 } = req.body;
+        try {
+            if (prix_m2 === undefined || prix_m2 === null || prix_m2 <= 0) {
+                return res.status(400).json(new ApiModel('error', null, 'Le prix par m² doit être supérieur à 0'));
+            }
+            await query("UPDATE configurations SET valeur = $1 WHERE code = 'PRIX_M2_DEFAUT'", [prix_m2.toString()]);
+            res.json(new ApiModel('success', { prix_m2 }, 'Prix par m² par défaut mis à jour'));
+        } catch (error) {
+            console.error('Erreur updateDefaultPrixM2:', error);
+            res.status(500).json(new ApiModel('error', null, 'Erreur lors de la mise à jour du prix par m²'));
         }
     }
 };

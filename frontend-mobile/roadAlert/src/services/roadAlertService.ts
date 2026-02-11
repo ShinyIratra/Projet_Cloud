@@ -21,6 +21,8 @@ import { db } from './firebase';
 export interface RoadAlert {
   id?: string;
   surface: number;
+  prix_m2: number;
+  niveau: number;
   budget: number;
   concerned_entreprise: string;
   status: string;
@@ -48,6 +50,8 @@ export interface MobileRoadAlert {
 class RoadAlertModel implements RoadAlert {
   id?: string;
   surface: number;
+  prix_m2: number;
+  niveau: number;
   budget: number;
   concerned_entreprise: string;
   status: string;
@@ -61,6 +65,8 @@ class RoadAlertModel implements RoadAlert {
   constructor(
     id: string | null,
     surface: number,
+    prix_m2: number,
+    niveau: number,
     budget: number,
     concerned_entreprise: string,
     status: string,
@@ -71,6 +77,8 @@ class RoadAlertModel implements RoadAlert {
   ) {
     this.id = id || undefined;
     this.surface = surface;
+    this.prix_m2 = prix_m2;
+    this.niveau = niveau;
     this.budget = budget;
     this.concerned_entreprise = concerned_entreprise;
     this.status = status;
@@ -92,7 +100,9 @@ class RoadAlertService {
       const roadAlert = new RoadAlertModel(
         null,
         alertData.surface,
-        alertData.budget,
+        alertData.prix_m2 || 0,
+        alertData.niveau || 1,
+        alertData.prix_m2 * alertData.niveau * alertData.surface,
         alertData.concerned_entreprise,
         alertData.status,
         alertData.lattitude,
@@ -107,6 +117,8 @@ class RoadAlertService {
       await setDoc(roadAlertRef, {
         id: roadAlert.id,
         surface: roadAlert.surface,
+        prix_m2: roadAlert.prix_m2,
+        niveau: roadAlert.niveau,
         budget: roadAlert.budget,
         concerned_entreprise: roadAlert.concerned_entreprise,
         status: roadAlert.status,
@@ -132,6 +144,8 @@ class RoadAlertService {
       const roadAlert = new RoadAlertModel(
         null,
         0, // surface par défaut
+        0, // prix_m2 par défaut
+        1, // niveau par défaut
         0, // budget par défaut
         '', // concerned_entreprise vide par défaut
         'nouveau', // status automatiquement défini à "nouveau"
@@ -147,6 +161,8 @@ class RoadAlertService {
       const dataToSave: any = {
         id: roadAlert.id,
         surface: roadAlert.surface,
+        prix_m2: roadAlert.prix_m2,
+        niveau: roadAlert.niveau,
         budget: roadAlert.budget,
         concerned_entreprise: roadAlert.concerned_entreprise,
         status: roadAlert.status,
@@ -181,6 +197,8 @@ class RoadAlertService {
         roadAlerts.push({
           id: data.id,
           surface: data.surface,
+          prix_m2: data.prix_m2 || 0,
+          niveau: data.niveau || 1,
           budget: data.budget,
           concerned_entreprise: data.concerned_entreprise,
           status: data.status,
@@ -215,6 +233,8 @@ class RoadAlertService {
         roadAlerts.push({
           id: data.id,
           surface: data.surface,
+          prix_m2: data.prix_m2 || 0,
+          niveau: data.niveau || 1,
           budget: data.budget,
           concerned_entreprise: data.concerned_entreprise,
           status: data.status,
@@ -248,7 +268,9 @@ class RoadAlertService {
 
       await updateDoc(roadAlertRef, {
         surface: alertData.surface,
-        budget: alertData.budget,
+        prix_m2: alertData.prix_m2 || 0,
+        niveau: alertData.niveau || 1,
+        budget: (alertData.prix_m2 || 0) * (alertData.niveau || 1) * alertData.surface,
         concerned_entreprise: alertData.concerned_entreprise,
         lattitude: alertData.lattitude,
         longitude: alertData.longitude,
@@ -327,6 +349,8 @@ class RoadAlertService {
       return {
         id: data.id,
         surface: data.surface,
+        prix_m2: data.prix_m2 || 0,
+        niveau: data.niveau || 1,
         budget: data.budget,
         concerned_entreprise: data.concerned_entreprise,
         status: data.status,

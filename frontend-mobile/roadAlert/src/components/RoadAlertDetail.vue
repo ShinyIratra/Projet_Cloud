@@ -28,6 +28,14 @@
           <p class="font-bold text-slate-700">{{ alert.surface }} m²</p>
         </div>
         <div class="bg-slate-50 p-3 rounded-xl">
+          <p class="text-[10px] uppercase font-bold text-slate-400">Niveau</p>
+          <p class="font-bold text-slate-700">{{ alert.niveau || 1 }} / 10</p>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl">
+          <p class="text-[10px] uppercase font-bold text-slate-400">Prix/m²</p>
+          <p class="font-bold text-slate-700">{{ formatBudget(alert.prix_m2 || 0) }}</p>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl">
           <p class="text-[10px] uppercase font-bold text-slate-400">Budget</p>
           <p class="font-bold text-green-600">{{ formatBudget(alert.budget) }}</p>
         </div>
@@ -189,6 +197,7 @@ const closePhotoViewer = () => {
   box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.1);
   max-height: 80vh;
   overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 #bottom-sheet.active {

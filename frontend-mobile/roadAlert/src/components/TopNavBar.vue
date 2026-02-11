@@ -93,11 +93,11 @@ const goBack = () => {
   left: 0;
   right: 0;
   z-index: 100;
-  height: 4rem;
+  height: calc(4rem + env(safe-area-inset-top));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.25rem;
+  padding: env(safe-area-inset-top) 1.25rem 0 1.25rem;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
